@@ -1,0 +1,105 @@
+# Sensors (Dutch), as the English library's sensors.yaml: asking a sensor or
+# a binary sensor by its name (Names page): "wat is de buitentemperatuur",
+# "hoeveel stroom gebruikt de droger", "is de voordeur open", "is de kelder
+# nat".
+#
+# A sensor says its value as Home Assistant has it, in its unit ("21,5
+# graden", "40 procent"), or its state in words; a binary sensor says what it
+# is in the words of its device class (open or dicht, nat or droog, bezet or
+# vrij ...), and ja or nee when asked about one of them. A name may be shared
+# by one in each room: the room said picks it, else the satellite's.
+title: Sensors
+icon: mdi:gauge
+
+commands:
+  sensor_value:
+    title: What a sensor says
+    icon: mdi:gauge
+    description: weten wat een sensor meet
+    require: [[wat, hoe, hoeveel, hoe veel, hoe hoog, vertel me]]
+    optional: [[is, zijn, de, het, van, staat, meet, gebruikt, verbruikt, niveau, stand]]
+    names:
+      entity: {count: 1, domains: [sensor]}
+      area: {count: 1}
+    # A room with the sensor picks it out: the one of that name there.
+    combinations: [[entity], [entity, area]]
+    response: >-
+      {%- set e = slots.entity[0] -%}
+      {%- set name = names.get(e, state_attr(e, 'friendly_name')) -%}
+      {%- set state = states(e) -%}
+      {%- set number = state | float(none) -%}
+      {%- set unit = state_attr(e, 'unit_of_measurement') -%}
+      {%- set units = {'°C': 'graden', '°F': 'graden', '%': 'procent', 'W': 'watt', 'kW': 'kilowatt',
+        'Wh': 'wattuur', 'kWh': 'kilowattuur', 'V': 'volt', 'A': 'ampère', 'lx': 'lux',
+        'ppm': 'deeltjes per miljoen', 'ppb': 'deeltjes per miljard', 'µg/m³': 'microgram per kubieke meter',
+        'hPa': 'hectopascal', 'mbar': 'millibar', 'inHg': 'inch kwik', 'mm': 'millimeter',
+        'cm': 'centimeter', 'in': 'inch', 'km/h': 'kilometer per uur', 'mph': 'mijl per uur',
+        'm/s': 'meter per seconde', 'L': 'liter', 'gal': 'gallon', 'm³': 'kubieke meter',
+        'min': 'minuten', 'h': 'uur', 's': 'seconden', 'd': 'dagen', 'dB': 'decibel', 'kg': 'kilo',
+        'lb': 'pond', 'mm/h': 'millimeter per uur', 'in/h': 'inch per uur'} -%}
+      {%- set days = ['maandag', 'dinsdag', 'woensdag', 'donderdag', 'vrijdag', 'zaterdag', 'zondag'] -%}
+      {%- if state in ['unavailable', 'unknown'] -%}
+      {{ name }} is op dit moment {{ 'niet beschikbaar' if state == 'unavailable' else 'onbekend' }}.
+      {%- elif number is not none -%}
+      {%- set shown = (number | round(1)) | string -%}
+      {%- set shown = shown[:-2] if shown.endswith('.0') else shown -%}
+      {{ name }} is {{ shown | replace('.', ',') }}{{ (' ' ~ units.get(unit, unit)) if unit else '' }}.
+      {%- elif state_attr(e, 'device_class') == 'timestamp' -%}
+      {%- set t = as_local(as_datetime(state)) -%}
+      {{ name }} is {{ days[t.weekday()] }} om {{ t.hour }} uur{{ (' ' ~ t.minute) if t.minute else '' }}.
+      {%- else -%}
+      {{ name }} is {{ state | replace('_', ' ') }}.
+      {%- endif -%}
+    needs:
+      - Add names for the sensors it may ask about (Names page).
+
+  binary_sensor_state:
+    title: Is a binary sensor on
+    icon: mdi:checkbox-blank-circle-outline
+    description: weten of een binaire sensor aan is
+    require: [[is, zijn, staat, staan]]
+    optional: [[er], [nog]]
+    names:
+      entity: {count: 1, domains: [binary_sensor]}
+      area: {count: 1}
+    lists:
+      asked: {list: binary_states}
+    combinations: [[entity, asked], [entity, area, asked]]
+    # Each device class's two states by the binary_states list's values, and
+    # what each is said as.
+    response: >-
+      {%- set e = slots.entity[0] -%}
+      {%- set name = names.get(e, state_attr(e, 'friendly_name')) -%}
+      {%- set state = states(e) -%}
+      {%- set words = {'door': ['open', 'closed'], 'garage_door': ['open', 'closed'], 'window': ['open', 'closed'],
+        'opening': ['open', 'closed'], 'lock': ['unlocked', 'locked'], 'moisture': ['wet', 'dry'],
+        'motion': ['detecting motion', 'clear'], 'occupancy': ['occupied', 'clear'], 'presence': ['home', 'away'],
+        'plug': ['plugged in', 'unplugged'], 'battery': ['low', 'normal'], 'battery_charging': ['charging', 'not charging'],
+        'connectivity': ['connected', 'disconnected'], 'running': ['running', 'not running'],
+        'smoke': ['detecting smoke', 'clear'], 'gas': ['detecting gas', 'clear'],
+        'carbon_monoxide': ['detecting carbon monoxide', 'clear'], 'problem': ['reporting a problem', 'OK'],
+        'cold': ['cold', 'normal'], 'heat': ['hot', 'normal'], 'light': ['detecting light', 'dark'],
+        'sound': ['detecting sound', 'quiet'], 'vibration': ['vibrating', 'still'], 'tamper': ['tampered with', 'OK'],
+        'safety': ['unsafe', 'safe'], 'update': ['out of date', 'up to date']} -%}
+      {%- set said = {'on': 'is aan', 'off': 'is uit', 'open': 'is open', 'closed': 'is dicht', 'unlocked': 'is van het slot',
+        'locked': 'is op slot', 'wet': 'is nat', 'dry': 'is droog', 'detecting motion': 'ziet beweging', 'clear': 'is vrij',
+        'occupied': 'is bezet', 'home': 'is thuis', 'away': 'is weg', 'plugged in': 'is aangesloten',
+        'unplugged': 'is losgekoppeld', 'low': 'is bijna leeg', 'normal': 'is normaal', 'charging': 'is aan het opladen',
+        'not charging': 'is niet aan het opladen', 'connected': 'is verbonden', 'disconnected': 'is niet verbonden',
+        'running': 'is actief', 'not running': 'is niet actief', 'detecting smoke': 'detecteert rook',
+        'detecting gas': 'detecteert gas', 'detecting carbon monoxide': 'detecteert koolmonoxide',
+        'reporting a problem': 'meldt een probleem', 'OK': 'is in orde', 'cold': 'is koud', 'hot': 'is heet',
+        'detecting light': 'ziet licht', 'dark': 'is donker', 'detecting sound': 'hoort geluid', 'quiet': 'is stil',
+        'vibrating': 'trilt', 'still': 'is stil', 'tampered with': 'meldt sabotage', 'unsafe': 'is onveilig',
+        'safe': 'is veilig', 'out of date': 'is verouderd', 'up to date': 'is bijgewerkt'} -%}
+      {%- set pair = words.get(state_attr(e, 'device_class'), ['on', 'off']) -%}
+      {%- set now = pair[0] if state == 'on' else pair[1] -%}
+      {%- if state not in ['on', 'off'] -%}
+      {{ name }} is op dit moment {{ {'unavailable': 'niet beschikbaar', 'unknown': 'onbekend'}.get(state, state) }}.
+      {%- elif slots.asked in pair or slots.asked in ['on', 'off'] -%}
+      {{ 'Ja' if (slots.asked in [pair[0], 'on']) == (state == 'on') else 'Nee' }}, {{ name }} {{ said.get(now, now) }}.
+      {%- else -%}
+      {{ name }} {{ said.get(now, now) }}.
+      {%- endif -%}
+    needs:
+      - Add names for the binary sensors it may ask about (Names page).

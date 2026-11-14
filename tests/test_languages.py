@@ -298,11 +298,16 @@ def public(module) -> dict[str, object]:
     }
 
 
-@pytest.mark.parametrize("module", ["speech", "reading"])
+@pytest.mark.parametrize("module", ["speech", "reading", "calendar", "compound"])
 @pytest.mark.parametrize("code", languages.codes())
 def test_every_language_says_and_reads_what_english_does(code, module):
+    """Every pack has English's modules -- what it says and reads, alarms
+    and reminders on the calendar, two commands said together -- with the
+    same names and signatures."""
     english = public(getattr(languages.load("en"), module))
-    own = public(getattr(languages.load(code), module))
+    theirs = getattr(languages.load(code), module)
+    assert theirs is not None, f"{code} has no {module}.py"
+    own = public(theirs)
     assert set(english) <= set(own), f"{code} lacks {sorted(set(english) - set(own))}"
     for name, value in english.items():
         if callable(value) and not isinstance(value, re.Pattern):
@@ -311,6 +316,17 @@ def test_every_language_says_and_reads_what_english_does(code, module):
             assert set(own[name]) == set(value), name
         else:
             assert type(own[name]) is type(value) and own[name], name
+
+
+@pytest.mark.parametrize("code", languages.codes())
+def test_every_language_has_englishs_lists(code):
+    """Each value list every home has in English (lists.yaml), with the same
+    values -- what Home Assistant gets -- each said some way."""
+    english, own = languages.load("en").lists, languages.load(code).lists
+    assert set(english) <= set(own), f"{code} lacks {sorted(set(english) - set(own))}"
+    for name, values in english.items():
+        assert set(own[name]) == set(values), f"{code} {name}: {sorted(set(values) ^ set(own[name]))}"
+        assert all(own[name][value] for value in values), f"{code} {name}: a value said no way"
 
 
 def test_what_is_said_is_the_apps_language(english, monkeypatch):

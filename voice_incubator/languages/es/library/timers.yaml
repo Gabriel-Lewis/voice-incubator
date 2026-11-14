@@ -8,18 +8,27 @@
 #   duration    "el temporizador de 5 minutos"
 # or it is the only one running. Spanish names a timer after the word:
 # "temporizador de pizza".
+#
+# Timers are the satellite's own, so they have no versions (variants) for a
+# device or a place named. Alarms and reminders with a time are events on the
+# Voice Incubator calendar in Home Assistant, which the app makes, and ring the
+# satellite that set them (when they are: the pack's calendar.py).
 title: Timers and alarms
 icon: mdi:timer-outline
+
+# Commands shown together in Add a command: each one's topic.
+topics:
+  timers: {title: Timers, icon: mdi:timer-outline}
+  alarms: {title: Alarms, icon: mdi:alarm}
 
 commands:
   start_timer:
     title: Start a timer
+    topic: timers
     icon: mdi:timer-plus-outline
     description: poner un temporizador
     # "Pon un temporizador de 5 minutos", "temporizador de media hora para la
     # pizza", "pon un temporizador llamado pasta de diez minutos".
-    # Asked for without how long ("pon un temporizador"), it asks: "pon"
-    # would otherwise play music called "temporizador".
     require: [[temporizador, cuenta atrás]]
     optional: [[pon, ponme, programa, crea, inicia, empieza, activa], [de, para, por],
                [llamado, llamada, con el nombre, para el, para la, para los, para las, del, de la, de los, de las]]
@@ -37,37 +46,67 @@ commands:
         - {multiple_of: 0.25, cost: 0}
         - {cost: 1.0}
     # Each said whole.
-    combinations: [[], [timer], [duration], [duration, timer]]
+    combinations: [[duration], [duration, timer]]
     timer: start
     verbosity: specific
 
   set_alarm:
     title: Set an alarm
+    topic: alarms
     icon: mdi:alarm
     description: poner una alarma
-    # A timer that rings at a clock time: "pon una alarma a las siete y
-    # media", "despiértame a las 7", "alarma para las ocho menos cuarto". Without
-    # "de la mañana" or "de la tarde" it is the next time that comes round.
+    # On the Voice Incubator calendar in Home Assistant: "pon una alarma a las
+    # siete y media", "despiértame a las 6 de la mañana", "una alarma para
+    # mañana a las seis y media", "una alarma todos los días laborables a las
+    # siete menos cuarto", "una alarma dentro de 20 minutos". Without "de la
+    # mañana" or "de la tarde" it is the next time that comes round; on another
+    # day, the morning.
     require: [[alarma, despiértame, despiértanos, levántame]]
-    optional: [[pon, ponme, programa, crea, activa], [a las, a la, para las, para la, a, para]]
-    wildcard: {slot: time, after: [a las, a la, para las, para la, a, para], to_end: true, max_words: 7}
-    exclude: [cancela, cancelar, borra, elimina, apaga, detén, quita, cuánto]
-    # Without a time it asks for one ("pon una alarma"): "pon" would
-    # otherwise play music called "alarma".
-    combinations: [[], [time]]
+    optional: [[pon, ponme, programa, crea, activa], [a las, a la, para las, para la, para, a, en, dentro de]]
+    wildcard: {slot: time, after: [alarma, despiértame, despiértanos, levántame, a las, a la, para las, para la, para, a, en,
+                                   dentro de], to_end: true, max_words: 10}
+    exclude: [cancela, cancelar, borra, elimina, apaga, detén, quita, desactiva, cuánto, qué, cuándo, cuál, cuáles, tengo, hay]
     timer: alarm
     verbosity: specific
     response:
       missing_time: ¿Para qué hora pongo la alarma?
 
+  cancel_alarm:
+    title: Cancel an alarm
+    topic: alarms
+    icon: mdi:alarm-off
+    description: cancelar una alarma
+    # "Cancela mi alarma", "borra la alarma de las siete", "quita la alarma de
+    # mañana". Said over a ringing alarm without a time ("apaga la alarma",
+    # "para la alarma"), it only stops it.
+    require: [[cancela, cancelar, borra, elimina, quita, apaga, desactiva, para, detén], [alarma, alarmas]]
+    optional: [[mi, la], [de, del, para, de las, de la, para las, para la, a las, a la]]
+    wildcard: {slot: time, after: [alarma, alarmas, de, del, para, de las, de la, para las, para la, a las, a la], max_words: 6}
+    combinations: [[], [time]]
+    timer: cancel_alarm
+    verbosity: specific
+
+  alarm_status:
+    title: Say the alarms
+    topic: alarms
+    icon: mdi:alarm-check
+    description: decir qué alarmas hay puestas
+    examples: ["qué alarmas tengo [puestas]", "(cuándo|a qué hora) suena mi alarma", "tengo (alguna alarma|alarmas) [puesta|puestas]"]
+    require: [[alarma, alarmas]]
+    optional: [[qué, cuándo, cuál, cuáles], [es, son, suena], [tengo, hay], [mi, mis, alguna], [puesta, puestas]]
+    exclude: [cancela, cancelar, borra, elimina, quita, apaga, desactiva, para, pon, ponme, programa, crea, activa,
+              despiértame]
+    timer: alarm_status
+
   cancel_timer:
     title: Cancel a timer
+    topic: timers
     icon: mdi:timer-off-outline
     description: cancelar un temporizador
     # Said whole, "para el temporizador" stops it: a new one may be "para el
     # arroz", so the keywords alone can't tell.
-    examples: ["(para|cancela|apaga) el temporizador", "(para|cancela|apaga) la alarma"]
-    require: [[cancela, cancelar, para, parar, detén, detener, borra, elimina, apaga], [temporizador, cuenta atrás, alarma]]
+    examples: ["(para|cancela|apaga) el temporizador"]
+    require: [[cancela, cancelar, para, parar, detén, detener, borra, elimina, apaga], [temporizador, cuenta atrás]]
     optional: [[minutos, minuto, segundos, segundo, horas, hora], [llamado, llamada, de, del, de la, de los, de las]]
     # Not a new one: "pon un temporizador para la pizza".
     exclude: [pon, ponme, programa, crea, inicia, todos]
@@ -82,6 +121,7 @@ commands:
 
   cancel_all_timers:
     title: Cancel every timer
+    topic: timers
     icon: mdi:timer-cancel-outline
     description: cancelar todos los temporizadores
     require: [[cancela, cancelar, para, parar, detén, borra, elimina, apaga], [todos], [temporizadores, temporizador]]
@@ -94,6 +134,7 @@ commands:
 
   pause_timer:
     title: Pause a timer
+    topic: timers
     icon: mdi:timer-pause-outline
     description: pausar un temporizador
     require: [[pausa, pausar, pon ... en pausa], [temporizador, cuenta atrás]]
@@ -109,6 +150,7 @@ commands:
 
   resume_timer:
     title: Resume a timer
+    topic: timers
     icon: mdi:timer-play-outline
     description: reanudar un temporizador
     require: [[reanuda, reanudar, continúa, continuar, sigue, seguir, quita la pausa], [temporizador, cuenta atrás]]
@@ -124,6 +166,7 @@ commands:
 
   timer_status:
     title: How long is left
+    topic: timers
     icon: mdi:timer-sand
     description: saber cuánto le queda a un temporizador
     examples: ["cuánto tiempo queda", "cuánto le queda al temporizador", "cuánto falta"]
@@ -141,6 +184,7 @@ commands:
 
   add_time:
     title: Add time to a timer
+    topic: timers
     icon: mdi:clock-plus-outline
     description: añadir tiempo a un temporizador
     # "Añade 5 minutos al temporizador de pizza", "alarga el temporizador 5 minutos".
@@ -157,6 +201,7 @@ commands:
 
   subtract_time:
     title: Take time off a timer
+    topic: timers
     icon: mdi:clock-minus-outline
     description: quitar tiempo a un temporizador
     # "Quita 2 minutos al temporizador", "acorta el temporizador de pizza 2 minutos".

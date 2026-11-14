@@ -1,7 +1,8 @@
 # German sentences and what each must become with the German library, for
 # scripts/bench_language.py (spoken) and tests/test_languages.py (typed). The
 # home: these names, the devices in these rooms, a satellite in the Büro.
-# Numbers are written as said, for text-to-speech.
+# Numbers are written as said, for text-to-speech. An alarm's or reminder's
+# time is compared by when the calendar reads it, on a Wednesday afternoon.
 names:
   areas:
     kueche: Küche
@@ -22,6 +23,8 @@ names:
     climate.heizung: Heizung
     cover.dachfenster: Dachfenster
     lock.haustuer: Haustür
+    sensor.aussentemperatur: Außentemperatur
+    binary_sensor.kellerfenster: Kellerfenster
 rooms:
   fan.deckenventilator: schlafzimmer
   fan.wohnzimmer_ventilator: wohnzimmer
@@ -63,7 +66,7 @@ sentences:
   - ["Welcher Tag ist heute?", what_date, {}, "a question"]
   - ["Spiele Jazz.", play_music_here, {query: jazz}, "free text"]
   - ["Spiele Jazz in der Küche.", play_music_place, {area: [kueche], query: jazz}, "free text, then a place"]
-  - ["Pausiere die Musik.", pause_music_here, {}, "music"]
+  - ["Pausiere die Musik.", pause_music_here, {kind: music}, "the music"]
   - ["Stelle die Lautstärke auf dreißig Prozent.", set_volume_here, {percentage: 30}, "music, a number"]
   - ["Was läuft gerade in der Küche?", whats_playing_place, {area: [kueche]}, "music, a place"]
   - ["Verschiebe die Musik auf den Küchenlautsprecher.", move_music_device, {entity: [media_player.kueche]}, "music, a device"]
@@ -77,3 +80,96 @@ sentences:
   - ["Brich den Timer ab.", cancel_timer, {}, "split verb"]
   - ["Wie lange läuft der Timer noch?", timer_status, {}, "a timer question"]
   - ["Vergiss es.", never_mind, {}, "an example sentence"]
+  # Covers to a position, brighter and dimmer, the white of the lights.
+  - ["Stell die Jalousien auf fünfzig Prozent.", cover_position_here, {device_class: blind, percentage: 50}, "covers to a position"]
+  - ["Fahr die Rollläden auf dreißig Prozent.", cover_position_here, {device_class: shutter, percentage: 30}, "covers to a position, fahren"]
+  - ["Stell das Dachfenster auf dreißig Prozent.", cover_position_device, {entity: [cover.dachfenster], percentage: 30}, "a cover to a position"]
+  - ["Mach das Licht heller.", brighter_here, {}, "brighter"]
+  - ["Mach die Küchenlampe heller.", brighter_place, {area: [kueche]}, "brighter, a compound"]
+  - ["Mach die Stehlampe dunkler.", dimmer_device, {entity: [light.stehlampe]}, "a light dimmer"]
+  - ["Dimme das Licht im Wohnzimmer.", dimmer_place, {area: [wohnzimmer]}, "dimmer, a place"]
+  - ["Dimme das Licht auf zwanzig Prozent.", set_brightness_here, {percentage: 20}, "dimmed to a number"]
+  - ["Mach das Licht im Schlafzimmer kaltweiß.", light_temperature_place, {area: [schlafzimmer], color_temperature: "5000"}, "a white, a place"]
+  - ["Mach das Licht warmweiß.", light_temperature_here, {color_temperature: "2700"}, "a white"]
+  # The thermostat.
+  - ["Stell das Thermostat auf einundzwanzig Grad.", set_temperature_here, {temperature: 21}, "the home's thermostat"]
+  - ["Dreh die Heizung hoch.", heat_up, {}, "warmer"]
+  - ["Dreh die Heizung runter.", heat_down, {}, "cooler"]
+  - ["Worauf steht das Thermostat?", thermostat, {}, "asking the thermostat"]
+  - ["Wie warm ist es drinnen?", thermostat, {}, "asking how warm"]
+  - ["In welchem Modus ist das Thermostat?", thermostat_mode, {}, "the thermostat's mode"]
+  - ["Stell das Thermostat auf Heizen.", set_thermostat_mode, {mode: heat}, "setting its mode"]
+  - ["Schalte das Thermostat aus.", set_thermostat_mode, {mode: "off"}, "turning it off"]
+  - ["Wie ist der Lüftermodus?", thermostat_fan, {}, "its fan"]
+  - ["Stell den Lüftermodus auf Automatik.", set_thermostat_fan, {mode: auto}, "setting its fan"]
+  # Music: what plays (the music, the TV), the speaker's playlist.
+  - ["Pausiere den Fernseher.", pause_music_here, {kind: tv}, "the TV"]
+  - ["Mach die Musik in der Küche leiser.", volume_down_place, {area: [kueche], kind: music}, "the music, a place"]
+  - ["Dreh den Fernseher auf dreißig Prozent runter.", set_volume_here, {kind: tv, percentage: 30}, "turned down to a number"]
+  - ["Spiel meine Playlist.", play_my_playlist, {}, "the speaker's playlist"]
+  # The satellites.
+  - ["Sprich lauter.", own_volume_up, {}, "the satellite's own volume"]
+  - ["Rede leiser.", own_volume_down, {}, "the satellite's own volume"]
+  - ["Stell deine Lautstärke auf fünfzig Prozent.", own_volume_set, {percentage: 50}, "its own, a number"]
+  - ["Sag allen, Abendessen ist fertig.", announce, {message: abendessen ist fertig}, "announce"]
+  - ["Verkünde in der Küche, dass Abendessen fertig ist.", announce, {area: [kueche], message: abendessen fertig ist}, "announce in an area"]
+  - ["Durchsage, Abendessen ist fertig, im Obergeschoss.", announce, {floor: [obergeschoss], message: abendessen ist fertig}, "announce, a floor last"]
+  - ["Verbinde mich mit der Küche.", intercom, {area: [kueche]}, "intercom"]
+  - ["Ruf das Wohnzimmer an.", intercom, {area: [wohnzimmer]}, "intercom, split verb"]
+  # Sensors and people.
+  - ["Wie hoch ist die Außentemperatur?", sensor_value, {entity: [sensor.aussentemperatur]}, "a sensor"]
+  - ["Ist das Kellerfenster offen?", binary_sensor_state, {entity: [binary_sensor.kellerfenster], asked: open}, "a binary sensor"]
+  - ["Wer bin ich?", who_am_i, {}, "who is speaking"]
+  # Lists.
+  - ["Hak Milch auf der Einkaufsliste ab.", shopping_list_check, {item: milch}, "checked off"]
+  - ["Lösche Milch von der Einkaufsliste.", shopping_list_remove, {item: milch}, "taken off"]
+  - ["Was steht auf der Einkaufsliste?", shopping_list_items, {}, "what's on it"]
+  - ["Setz Wäsche waschen auf die Aufgabenliste.", todo_add, {item: wäsche waschen}, "the to-do list"]
+  - ["Nimm Wäsche waschen von der Aufgabenliste.", todo_remove, {item: wäsche waschen}, "off the to-do list"]
+  - ["Hak Steuern auf der Aufgabenliste ab.", todo_check, {item: steuern}, "checked off the to-do list"]
+  - ["Was steht auf der Aufgabenliste?", todo_items, {}, "what's on the to-do list"]
+  - ["Setz Steuern machen auf meine Aufgabenliste.", todo_add_mine, {item: steuern machen}, "my to-do list"]
+  - ["Was steht auf meiner Aufgabenliste?", todo_items_mine, {}, "what's on my to-do list"]
+  # Weather.
+  - ["Wie ist das Wetter?", weather, {}, "the weather now"]
+  - ["Wie wird das Wetter morgen?", weather_day, {day: tomorrow}, "a day"]
+  - ["Wie wird das Wetter am Wochenende?", weather_day, {day: weekend}, "the weekend"]
+  - ["Wie wird das Wetter diese Woche?", weather_week, {}, "the week"]
+  - ["Wird es am Samstag regnen?", will_it_rain, {what: rain, day: saturday}, "rain on a day"]
+  - ["Wird es morgen schneien?", will_it_rain, {what: snow, day: tomorrow}, "snow"]
+  - ["Brauche ich einen Regenschirm?", will_it_rain, {}, "an example sentence"]
+  # Alarms, on the calendar.
+  - ["Stell einen Wecker für morgen um sieben Uhr abends.", set_alarm, {time: morgen um sieben uhr abends}, "the day, then the time"]
+  - ["Stell einen Wecker für halb acht.", set_alarm, {time: halb acht}, "halb: the next 7:30 to come"]
+  - ["Weck mich morgen früh um Viertel nach sechs.", set_alarm, {time: morgen früh um viertel nach sechs}, "morgen früh, viertel nach"]
+  - ["Stell einen Wecker für morgen um Viertel vor sieben.", set_alarm, {time: morgen um viertel vor sieben}, "viertel vor"]
+  - ["Stell einen Wecker für jeden Werktag um sechs Uhr fünfundvierzig.", set_alarm, {time: jeden werktag um 6:45}, "repeating"]
+  - ["Weck mich jeden Tag um sechs Uhr dreißig.", set_alarm, {time: jeden tag um 6:30}, "every day"]
+  - ["Stell einen Wecker für montags und mittwochs um sieben.", set_alarm, {time: montags und mittwochs um sieben}, "repeating on two days"]
+  - ["Weck mich am Samstag um sieben.", set_alarm, {time: am samstag um sieben}, "a weekday, the morning"]
+  - ["Stell einen Wecker für zwölf Uhr mittags.", set_alarm, {time: zwölf uhr mittags}, "noon"]
+  - ["Stell einen Wecker für heute Abend um zehn.", set_alarm, {time: heute abend um zehn}, "heute Abend"]
+  - ["Stell einen Wecker morgen um acht Uhr.", set_alarm, {time: morgen um acht uhr}, "the day first, no für"]
+  - ["Stell einen Wecker in zwanzig Minuten.", set_alarm, {time: in zwanzig minuten}, "from now"]
+  - ["Weck mich in acht Stunden.", set_alarm, {time: in acht stunden}, "from now"]
+  - ["Lösche meinen Wecker für morgen.", cancel_alarm, {time: morgen}, "a day alone"]
+  - ["Lösche den Wecker um sieben Uhr.", cancel_alarm, {time: sieben uhr}, "a time"]
+  - ["Schalte den Wecker aus.", cancel_alarm, {}, "the only one, or which"]
+  - ["Welche Wecker habe ich?", alarm_status, {}, "an example sentence"]
+  - ["Wann klingelt mein Wecker?", alarm_status, {}, "an example sentence"]
+  # Reminders, on the calendar: German says the time anywhere, the verb last.
+  - ["Erinnere mich um siebzehn Uhr daran, Mama anzurufen.", remind_me, {entity: [todo.reminders], reminder: um 17 uhr daran mama anzurufen}, "time first"]
+  - ["Erinnere mich daran, jeden Dienstag um neunzehn Uhr den Müll rauszubringen.", remind_me, {entity: [todo.reminders], reminder: daran jeden dienstag um 19 uhr den müll rauszubringen}, "repeating, the time inside"]
+  - ["Erinnere mich in zehn Minuten daran, nach dem Ofen zu sehen.", remind_me, {entity: [todo.reminders], reminder: in 10 minuten daran nach dem ofen zu sehen}, "from now"]
+  - ["Erinnere mich morgen um neun daran, den Zahnarzt anzurufen.", remind_me, {entity: [todo.reminders], reminder: morgen um 9 daran den zahnarzt anzurufen}, "a day and a time first"]
+  - ["Erinnere mich daran, dass der Klempner am Freitag um drei kommt.", remind_me, {entity: [todo.reminders], reminder: daran dass der klempner am freitag um 3 kommt}, "the time inside, the verb last"]
+  - ["Erinnere mich daran, zehn Minuten Pause zu machen, um siebzehn Uhr.", remind_me, {entity: [todo.reminders], reminder: daran zehn minuten pause zu machen um 17 uhr}, "a length that is the reminder's"]
+  - ["Erinnere mich um fünf, die Wäsche aufzuhängen.", remind_me, {entity: [todo.reminders], reminder: um fünf die wäsche aufzuhängen}, "um, no daran"]
+  - ["Erinnere mich daran, Milch zu kaufen.", remind_me, {entity: [todo.reminders], reminder: daran milch zu kaufen}, "no time: the to-do list"]
+  - ["Lösche meine Erinnerung, Mama anzurufen.", cancel_reminder, {reminder: mama anzurufen}, "what it is about"]
+  - ["Lösche die Erinnerung an den Zahnarzt.", cancel_reminder, {reminder: zahnarzt}, "an"]
+  - ["Lösche die Erinnerung für morgen.", cancel_reminder, {reminder: für morgen}, "its day"]
+  - ["Lösche die Erinnerung um siebzehn Uhr.", cancel_reminder, {reminder: um 17 uhr}, "its time"]
+  - ["Lösche meine Erinnerung.", cancel_reminder, {}, "the only one, or which"]
+  - ["Welche Erinnerungen habe ich?", reminder_status, {}, "an example sentence"]
+  - ["Was steht heute in meinem Kalender?", my_calendar, {}, "the speaker's calendar"]

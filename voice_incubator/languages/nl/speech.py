@@ -40,6 +40,9 @@ CONFIRM_UNCLEAR = "Sorry, dat antwoord heb ik niet verstaan."
 NO_COMMANDS = "Er zijn nog geen spraakopdrachten ingesteld. Voeg ze toe in de Voice Incubator app."
 TIMERS_NEED_INTEGRATION = "Voor timers is de Voice Incubator integratie in Home Assistant nodig."
 
+VOICE_SAMPLE = "Hallo! Zo klink ik. Licht in de keuken aan."
+"""What the Settings page's Try says in a voice, when it is given nothing else."""
+
 NO_AREA = 'Ik weet niet in welke ruimte ik ben. Geef deze satelliet een ruimte.'
 """A command for the satellite's area, on a satellite in none."""
 

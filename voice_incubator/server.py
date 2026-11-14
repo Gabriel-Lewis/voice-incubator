@@ -771,7 +771,8 @@ class VoiceIncubatorApp:
     async def start(self) -> None:
         self.store.load_extras()
         voice = self.piper_voice()
-        todo = downloads.missing(self.root / "models") + (voice.missing(self.piper_dir) if voice is not None else [])
+        todo = downloads.missing(self.root / "models", self.language.code, self.language.gliner)
+        todo += voice.missing(self.piper_dir) if voice is not None else []
         if todo:
             await self._download(todo)
         if voice is not None:

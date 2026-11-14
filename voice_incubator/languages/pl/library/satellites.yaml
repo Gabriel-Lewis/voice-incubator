@@ -1,11 +1,111 @@
-# About the satellite itself (Polish), as the English library's satellites.yaml.
+# The satellites (Polish), as the English library's satellites.yaml:
+# announcements between them, the intercom, a satellite's own volume, and
+# never mind.
+#
+# An announcement is said on the other satellites, after a chime: every one, or
+# those in the area or on the floor named. One in a call, ringing a timer or
+# joined by the intercom says it once that is over (within a minute).
+#
+# The intercom joins this satellite and the one in the area named, once this
+# call ends: what is said at each is heard at the other. Both stop answering
+# wake words and blink their rings until the button on either is pressed (or
+# after half an hour). Both need firmware that can.
 title: Satellites
 icon: mdi:speaker-wireless
 
+# Commands shown together in Add a command: each one's topic.
+topics:
+  own_volume: {title: Satellite volume, icon: mdi:volume-equal}
+
 commands:
+  announce:
+    title: Announce
+    icon: mdi:bullhorn
+    description: ogłosić coś na pozostałych satelitach
+    # "Ogłoś, że obiad gotowy", "powiedz wszystkim, że obiad gotowy", "ogłoś
+    # na piętrze, że obiad gotowy", "ogłoś w kuchni obiad gotowy".
+    require: [[ogłoś, ogłosić, rozgłoś, zakomunikuj, powiedz wszystkim, przekaż wszystkim]]
+    optional: [[że]]
+    names:
+      area: {count: 1}
+      floor: {count: 1}
+    combinations: [[message], [area, message], [floor, message]]
+    wildcard:
+      slot: message
+      after: [ogłoś, ogłosić, rozgłoś, zakomunikuj, powiedz wszystkim, przekaż wszystkim, że]
+      to_end: true
+      max_words: 15
+    announce: "{{ slots.message }}"
+
+  intercom:
+    title: Intercom
+    icon: mdi:phone-in-talk
+    description: porozmawiać z innym pomieszczeniem przez jego satelitę
+    # "Połącz z kuchnią", "połącz się z sypialnią", "interkom do kuchni",
+    # "zadzwoń do gabinetu", "połącz mnie z satelitą w salonie".
+    require: [[połącz, połącz się, połącz mnie, interkom, zadzwoń]]
+    optional: [[satelitą, asystentem, asystentem głosowym]]
+    names:
+      area: {count: 1}
+    intercom: connect
+    needs:
+      - Give the satellites their areas (each one's page), and the areas names
+        (Names page). The button on either satellite ends it.
+
+  # The satellite's own speaker, whatever plays on it: what its dial sets.
+  own_volume_up:
+    title: Turn yourself up
+    topic: own_volume
+    icon: mdi:volume-plus
+    description: zwiększyć głośność samego satelity
+    examples: [mów głośniej, podgłośnij się, zwiększ swoją głośność, mów trochę głośniej]
+    require: [[mów głośniej, mów ... głośniej, podgłośnij się, zwiększ swoją głośność, zwiększ ... swoją głośność, mów głośno]]
+    action:
+      action: media_player.volume_up
+      target:
+        entity_id: "{{ satellite.device_media_player }}"
+    verbosity: beep
+
+  own_volume_down:
+    title: Turn yourself down
+    topic: own_volume
+    icon: mdi:volume-minus
+    description: zmniejszyć głośność samego satelity
+    examples: [mów ciszej, ścisz się, przycisz się, zmniejsz swoją głośność, mów trochę ciszej]
+    require: [[mów ciszej, mów ... ciszej, ścisz się, przycisz się, zmniejsz swoją głośność, zmniejsz ... swoją głośność, mów cicho]]
+    action:
+      action: media_player.volume_down
+      target:
+        entity_id: "{{ satellite.device_media_player }}"
+    verbosity: beep
+
+  own_volume_set:
+    title: Set your volume
+    topic: own_volume
+    icon: mdi:volume-equal
+    description: ustawić głośność samego satelity
+    # Also turned up or down to a number: "podgłośnij się do 50".
+    require: [[swoją głośność, swoja głośność, twoją głośność, twoja głośność, podgłośnij się, ścisz się, przycisz się]]
+    optional: [[ustaw, zmień, zwiększ, zmniejsz], [procent], [na, do]]
+    exclude: [o]
+    number: percentage
+    action:
+      action: media_player.volume_set
+      target:
+        entity_id: "{{ satellite.device_media_player }}"
+      data:
+        volume_level: "{{ slots.percentage / 100 }}"
+    verbosity: beep
+    response:
+      done:
+        brief: Gotowe.
+        specific: Moja głośność to {{ slots.percentage }} procent.
+
   never_mind:
     title: Never mind
     icon: mdi:close-circle-outline
     description: nic nie robić
-    # Said whole only: "anuluj minutnik" is the timer's.
+    # Said whole only: "anuluj minutnik" is the timer's. Nothing to do, and by
+    # default nothing said, not even a sound: the satellite stops listening.
+    # Give it a response (Only respond) or a beep to hear that it did.
     examples: [nieważne, nie ważne, zapomnij, zapomnij o tym, anuluj, nic, nic nie rób, już nic, nieistotne]

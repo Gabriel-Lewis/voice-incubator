@@ -1,6 +1,12 @@
-# Lights and switches (Dutch), as the English library's lights.yaml.
+# Lights and switches (Dutch), as the English library's lights.yaml: on and
+# off, brightness, color, and asking which are on.
 title: Lights and switches
 icon: mdi:lightbulb-outline
+
+# Commands shown together in Add a command: each one's topic.
+topics:
+  on_and_off: {title: On and off, icon: mdi:lightbulb-on-outline}
+  brightness_and_color: {title: Brightness and color, icon: mdi:brightness-6}
 
 # What the versions add to a command (merged into them with <<).
 shared:
@@ -17,11 +23,47 @@ shared:
     combinations: [[area], [floor]]
     needs:
       - Add names for the areas and floors it may act in (Names page).
+  # 30 percent brighter or dimmer (slots.step), never to off: the lights that
+  # are on here, or in an area or floor named, of those added there (Names) --
+  # no intent changes brightness by a step -- or a light by name, which
+  # comes on to be brightened.
+  brightness_step: &brightness_step
+    - variables:
+        none_on: {outcome: no_lights}
+        lights: >-
+          {%- if slots.entity -%}
+          {{ (slots.entity | select('is_state', 'on') | list) if slots.step | int < 0 else slots.entity }}
+          {%- else -%}
+          {%- set ns = namespace(ids=[]) -%}
+          {%- for s in states.light if devices.get(s.entity_id) in place.areas and s.state == 'on'
+            and s.attributes.supported_color_modes != ['onoff'] -%}
+          {%- set ns.ids = ns.ids + [s.entity_id] -%}
+          {%- endfor -%}
+          {{ ns.ids }}
+          {%- endif -%}
+    - if: "{{ not lights }}"
+      then:
+        - stop: No lights to change
+          response_variable: none_on
+    - repeat:
+        for_each: "{{ lights }}"
+        sequence:
+          - action: light.turn_on
+            target:
+              entity_id: "{{ repeat.item }}"
+            data:
+              brightness_pct: >-
+                {{ [[((state_attr(repeat.item, 'brightness') or 0) / 2.55) | round(0) + slots.step | int, 1] | max, 100] | min | int }}
+  brightness_said: &brightness_said
+    no_lights: >-
+      {{ (names.get(slots.entity[0], state_attr(slots.entity[0], 'friendly_name')) ~ ' staat uit.') if slots.entity
+      else 'Er zijn geen lampen aan ' ~ place.said ~ '.' }}
 
 commands:
   # Lights here, in an area or on a floor named, or a device by name.
   turn_on:
     title: Turn on
+    topic: on_and_off
     icon: mdi:lightbulb-on-outline
     description: het licht aandoen
     require: [[licht, lichten, lamp, lampen, verlichting], [aan, aandoen, aanzetten, inschakelen, schakel ... in]]
@@ -43,6 +85,7 @@ commands:
           {%- else -%}
           {{ (ns.names[:-1] | join(', ') ~ ' en ' ~ ns.names[-1]) if n > 1 else ns.names[0] }} {{ place.said }} aan.
           {%- endif -%}
+    formerly: [lights_on, device_on]
     variants:
       here:
         title: Turn on the lights in this satellite's area
@@ -69,6 +112,7 @@ commands:
 
   turn_off:
     title: Turn off
+    topic: on_and_off
     icon: mdi:lightbulb-off-outline
     description: het licht uitdoen
     require: [[licht, lichten, lamp, lampen, verlichting], [uit, uitdoen, uitzetten, uitschakelen]]
@@ -90,6 +134,7 @@ commands:
           {%- else -%}
           {{ (ns.names[:-1] | join(', ') ~ ' en ' ~ ns.names[-1]) if n > 1 else ns.names[0] }} {{ place.said }} uit.
           {%- endif -%}
+    formerly: [lights_off, device_off]
     variants:
       here:
         title: Turn off the lights in this satellite's area
@@ -117,6 +162,7 @@ commands:
 
   any_lights_on:
     title: Are any lights on
+    topic: on_and_off
     icon: mdi:lightbulb-question
     description: weten welke lampen aan zijn
     # No example sentences: one said word for word carries no area or floor.
@@ -181,12 +227,24 @@ commands:
 
   set_brightness:
     title: Set the brightness
+    topic: brightness_and_color
     icon: mdi:brightness-6
     description: de helderheid instellen
     supports: brightness
-    require: [[helderheid, procent]]
-    optional: [[zet, maak, dim, dimmen, verander], [licht, lichten, lamp, lampen], [op], [helderheid], [procent]]
-    exclude: [volume]
+    # To a number, also turned on, up or down, or dimmed: "dim het licht naar
+    # twintig", "doe het licht in de keuken aan op vijftig procent". Never the
+    # volume's, the heating's or the TV's, by a number ("dim het licht met
+    # 20"), in kelvin, or in some minutes.
+    require: [[helderheid, procent, dim, dimmen, licht, lichten, lamp, lampen, verlichting]]
+    optional:
+      - [zet, maak, dim, dimmen, verander, draai, doe]
+      - [aan, hoger, lager, omhoog, omlaag]
+      - [licht, lichten, lamp, lampen, verlichting]
+      - [op, naar]
+      - [helderheid]
+      - [procent]
+    exclude: [volume, muziek, tv, televisie, thermostaat, temperatuur, graden, graad, kelvin, met,
+              minuut, minuten, uur, uren, seconde, seconden]
     number: percentage
     intent:
       name: HassLightSet
@@ -217,6 +275,7 @@ commands:
 
   light_color:
     title: Set the light color
+    topic: brightness_and_color
     icon: mdi:format-color-fill
     description: de kleur van het licht veranderen
     supports: color
@@ -253,3 +312,113 @@ commands:
         <<: *place
         title: Set the light color in an area or floor
         combinations: [[area, color], [floor, color]]
+
+  brighter:
+    title: Brighter
+    topic: brightness_and_color
+    icon: mdi:brightness-7
+    description: het licht feller maken
+    supports: brightness
+    require: [[feller, helderder, lichter, hoger, omhoog], [licht, lichten, lamp, lampen, verlichting, helderheid]]
+    optional: [[maak, zet, doe, draai], [een beetje, wat, iets]]
+    slots: {step: 30}
+    action: *brightness_step
+    verbosity: beep
+    response:
+      <<: *brightness_said
+      done:
+        brief: Feller gezet.
+        specific: >-
+          {{ names.get(slots.entity[0], state_attr(slots.entity[0], 'friendly_name')) if slots.entity
+          else 'Licht ' ~ place.said }} feller gezet.
+    variants:
+      here:
+        title: Brighter in this satellite's area
+        examples: ["[maak het] [een beetje|wat] (feller|lichter) [hier]"]
+      device:
+        <<: *device
+        title: Brighten a light by name
+        require: [[feller, helderder, lichter, hoger, omhoog]]
+        names:
+          entity: {count: 1, domains: [light]}
+          area: {count: 1}
+        needs:
+          - Add names for the lights it may brighten (Names page).
+      place:
+        <<: *place
+        title: Brighter in an area or floor
+
+  dimmer:
+    title: Dimmer
+    topic: brightness_and_color
+    icon: mdi:brightness-4
+    description: het licht dimmen
+    supports: brightness
+    require: [[dim, dimmen, donkerder, minder fel, lager, omlaag], [licht, lichten, lamp, lampen, verlichting, helderheid]]
+    optional: [[maak, zet, doe, draai], [een beetje, wat, iets]]
+    slots: {step: -30}
+    action: *brightness_step
+    verbosity: beep
+    response:
+      <<: *brightness_said
+      done:
+        brief: Gedimd.
+        specific: >-
+          {{ names.get(slots.entity[0], state_attr(slots.entity[0], 'friendly_name')) if slots.entity
+          else 'Licht ' ~ place.said }} gedimd.
+    variants:
+      here:
+        title: Dimmer in this satellite's area
+        examples: ["[maak het] [een beetje|wat] (donkerder|minder fel) [hier]"]
+      device:
+        <<: *device
+        title: Dim a light by name
+        require: [[dim, dimmen, donkerder, minder fel, lager, omlaag]]
+        names:
+          entity: {count: 1, domains: [light]}
+          area: {count: 1}
+        needs:
+          - Add names for the lights it may dim (Names page).
+      place:
+        <<: *place
+        title: Dimmer in an area or floor
+
+  light_temperature:
+    title: Set the color temperature
+    topic: brightness_and_color
+    icon: mdi:white-balance-sunny
+    description: de kleurtemperatuur van het licht veranderen
+    supports: color_temp
+    # By what the white is called: warm wit, zacht wit, neutraal wit, koel
+    # wit, daglicht (the color_temperatures list, in kelvin).
+    require: [[zet, maak, verander], [licht, lichten, lamp, lampen, verlichting]]
+    optional: [[kleurtemperatuur, temperatuur], [op, naar]]
+    lists:
+      color_temperature: {list: color_temperatures}
+    intent:
+      name: HassLightSet
+      slots: {temperature: "{{ slots.color_temperature }}"}
+    verbosity: beep
+    response:
+      done:
+        brief: Kleurtemperatuur veranderd.
+        specific: >-
+          {{ names.get(slots.entity[0], state_attr(slots.entity[0], 'friendly_name')) if slots.entity
+          else 'Licht ' ~ place.said }} op {{ slots.color_temperature }} kelvin gezet.
+    variants:
+      here:
+        title: Set the color temperature in this satellite's area
+      device:
+        <<: *device
+        title: Set the color temperature of a light by name
+        require: [[zet, maak, verander]]
+        names:
+          entity: {count: 1, domains: [light]}
+          area: {count: 1}
+        combinations: [[entity, color_temperature], [entity, area, color_temperature]]
+        needs:
+          - Add names for the lights it may change (Names page).
+      place:
+        <<: *place
+        title: Set the color temperature in an area or floor
+        combinations: [[area, color_temperature], [floor, color_temperature]]

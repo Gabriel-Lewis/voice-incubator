@@ -1,36 +1,96 @@
-# Reminders and calendar (French), as the English library's reminders.yaml.
+# Reminders and calendar (French), as the English library's reminders.yaml:
+# reminders, and what's on the speaker's calendar.
 title: Reminders and calendar
 icon: mdi:calendar-clock
 
+# Commands shown together in Add a command: each one's topic.
+topics:
+  reminders: {title: Reminders, icon: mdi:calendar-clock}
+
 commands:
+  my_calendar:
+    title: What's on my calendar
+    icon: mdi:calendar-account
+    description: savoir ce qu'il y a dans mon agenda aujourd'hui
+    # The rest of today on the speaker's own calendar (People page); where
+    # nobody has one, this one.
+    examples: ["qu'est ce qu'il y a (dans|sur) mon (agenda|calendrier) [aujourd'hui]", "quel est mon programme [aujourd'hui]",
+               "qu'est ce que j'ai [de prévu] aujourd'hui"]
+    require: [[mon agenda, mon calendrier, mon planning, mon programme]]
+    optional: [[qu'est ce qu'il y a, qu'est ce que j'ai, quel est, quoi], [dans, sur], [aujourd'hui, pour aujourd'hui, de prévu]]
+    slots:
+      entity: [calendar.family]
+    mine: calendar
+    action:
+      - action: calendar.get_events
+        target:
+          entity_id: "{{ slots.entity }}"
+        data:
+          end_date_time: "{{ today_at('23:59:59').isoformat() }}"
+        response_variable: found
+      - variables:
+          reply:
+            events: "{{ found[slots.entity[0]].events | map(attribute='summary') | list }}"
+      - stop: Read the calendar
+        response_variable: reply
+    response:
+      done: >-
+        {% set events = result.events or [] %}
+        {% if not events %}Il n'y a plus rien dans votre agenda aujourd'hui.
+        {% elif events | count == 1 %}Vous avez {{ events[0] }} aujourd'hui.
+        {% else %}Vous avez {{ events[:-1] | join(', ') }} et {{ events[-1] }} aujourd'hui.{% endif %}
+    needs:
+      - Give each person their calendar (People page). Where nobody has one,
+        it reads this one (calendar.family here).
+
   remind_me:
-    title: Remember something
-    icon: mdi:note-edit-outline
-    description: se faire rappeler quelque chose
-    # "Rappelle-moi d'arroser les plantes", "rappelle-moi de sortir les poubelles".
+    title: Remind me
+    topic: reminders
+    icon: mdi:calendar-clock
+    description: ajouter un rappel
+    # With a time, an event on the Voice Incubator calendar that is said on this
+    # satellite then: "rappelle-moi à 17 heures d'appeler maman", "rappelle-moi
+    # de sortir les poubelles tous les mardis à 19 heures", "rappelle-moi dans
+    # 10 minutes de surveiller le four". Without one, it goes on the to-do list.
     require: [[rappelle moi, rappelez moi]]
-    optional: [[de, d']]
     wildcard:
       slot: reminder
-      after: [de, rappelle moi, rappelez moi]
+      # Also as the transcript writes them, one word: the text after them.
+      after: [rappelle moi, rappelez moi, rappelle-moi, rappelez-moi]
       to_end: true
-      max_words: 10
-    # The speaker's own to-do list, when anyone has one (People page).
+      max_words: 16
     slots:
       entity: [todo.reminders]
+    # The speaker's own to-do list, when anyone has one (People page).
     mine: todo_list
-    action:
-      action: todo.add_item
-      target:
-        entity_id: "{{ slots.entity }}"
-      data:
-        item: "{{ slots.reminder }}"
+    timer: reminder
     verbosity: specific
-    response:
-      done:
-        brief: Je vous le rappellerai.
-        specific: "Je vous rappellerai : {{ slots.reminder }}."
     needs:
-      - Point it at a to-do list (todo.reminders here). Where someone has a
-        to-do list of their own (People page), theirs, and they must be
-        recognized.
+      - Point it at a to-do list (todo.reminders here) for reminders without a
+        time. Where someone has a to-do list of their own (People page), theirs,
+        and they must be recognized.
+
+  cancel_reminder:
+    title: Cancel a reminder
+    topic: reminders
+    icon: mdi:calendar-remove
+    description: annuler un rappel
+    # On the Voice Incubator calendar, by what it is about, when it is, or both:
+    # "annule mon rappel d'appeler maman", "supprime le rappel de demain",
+    # "annule le rappel de 17 heures"; with one, the only one.
+    require: [[annule, annuler, supprime, supprimer, efface, enlève, oublie], [rappel, rappels]]
+    wildcard: {slot: reminder, after: [rappel, rappels], to_end: true, max_words: 12}
+    combinations: [[], [reminder]]
+    timer: cancel_reminder
+    verbosity: specific
+
+  reminder_status:
+    title: Say the reminders
+    topic: reminders
+    icon: mdi:calendar-clock
+    description: savoir quels rappels sont prévus
+    examples: ["quels sont mes rappels", "est ce que j'ai des rappels", "j'ai des rappels"]
+    require: [[rappels, rappel]]
+    optional: [[quels, quel, sont, est], [est ce que, j'ai, ai je, y a t il], [prévus, prévu]]
+    exclude: [rappelle moi, rappelez moi, ajoute, mets, annule, supprime]
+    timer: reminder_status

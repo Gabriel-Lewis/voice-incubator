@@ -16,6 +16,7 @@ from pathlib import Path
 
 from adapt_ctc.embedding import DEFAULT_EMBEDDING_MODEL
 
+from . import languages
 from .server import Options, VoiceIncubatorApp
 from .wyoming_server import HOME_ASSISTANT
 from .wyoming_server import PORT as WYOMING_PORT
@@ -70,7 +71,10 @@ async def main() -> None:
     parser.add_argument(
         "--wyoming-host", help="address it listens on (default 127.0.0.1, or every one as an app)"
     )
-    parser.add_argument("--language", default="en", help="what it hears and says (voice_incubator/languages)")
+    parser.add_argument(
+        "--language", default="en",
+        help="what it hears and says: one of voice_incubator/languages (default en; as an app, its language option)",
+    )
     parser.add_argument("--silence", type=float, default=1.0)
     parser.add_argument("--max-command", type=float, default=15.0)
     parser.add_argument("--save-dir", help="also write each call's audio here, per device")
@@ -199,6 +203,13 @@ async def main() -> None:
             setattr(args, attribute, app_options[option])
     if supervisor_token:
         args.wyoming_port = int(app_options.get("wyoming_port", WYOMING_PORT) or 0)
+        # Picked on the Configuration tab, which has no default for it: the
+        # Supervisor doesn't start the app without one.
+        if not app_options.get("language"):
+            parser.error("Pick the app's language on its Configuration tab")
+        args.language = str(app_options["language"])
+    if args.language not in languages.codes():
+        parser.error(f"no language {args.language!r} (one of {', '.join(languages.codes())})")
 
     logging.basicConfig(
         level=logging.DEBUG if args.debug else logging.INFO,

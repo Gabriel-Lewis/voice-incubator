@@ -49,6 +49,34 @@ def test_only_the_linked_models_are_downloaded(tmp_path):
         link(data, models)
 
 
+def test_only_the_languages_models_are_downloaded(tmp_path):
+    """In German: its FastConformer hybrid where Parakeet would be, laid out
+    as its pack finds it, and no GLiNER (it doesn't understand German)."""
+    from voice_incubator import languages  # pylint: disable=import-outside-toplevel
+
+    models, data = tmp_path / "models", tmp_path / "data"
+    for model in downloads.MODELS:
+        (models / model.folder).parent.mkdir(parents=True, exist_ok=True)
+        (models / model.folder).symlink_to(data / model.folder)
+    german = languages.load("de")
+    todo = missing(models, "de", german.gliner)
+    assert {path.parent.relative_to(data).as_posix() for path, _ in todo} == {
+        "stt_de_fastconformer_hybrid_large_pc-transducer-int8", "speech-to-phrase/stt_de_fastconformer_hybrid_large_pc-int8",
+        "embeddinggemma-2", "embeddinggemma-2/onnx"}
+    root = tmp_path / "app"
+    (root / "models").mkdir(parents=True)
+    (root / "models" / "speech-to-phrase").mkdir()
+    for path, file in todo:  # where its pack looks for them
+        place = root / "models" / path.relative_to(data)
+        place.parent.mkdir(parents=True, exist_ok=True)
+        place.write_bytes(b"")
+    assert german.ctc_dir(root) == root / "models/speech-to-phrase/stt_de_fastconformer_hybrid_large_pc-int8"
+    for code in languages.codes():
+        pack = languages.load(code)
+        speech = {model.folder for model in downloads.SPEECH[code]}
+        assert f"{pack.ctc}-int8" in speech and (pack.transducer is None or f"{pack.transducer}-int8" in speech), code
+
+
 def test_downloaded_whole_and_as_published_or_tried_again(tmp_path, monkeypatch):
     asyncio.run(_downloaded(tmp_path, monkeypatch))
 
@@ -71,6 +99,7 @@ async def _downloaded(tmp_path: Path, monkeypatch) -> None:
     files = tuple(File(name, f"http://127.0.0.1:{port}/{name}", hashlib.sha256(body).hexdigest(), len(body))
                   for name, body in served.items())
     monkeypatch.setattr(downloads, "MODELS", (Model("fake", files),))
+    monkeypatch.setattr(downloads, "wanted", lambda language="en", gliner=True: (Model("fake", files),))
     monkeypatch.setattr(downloads, "RETRY_SECONDS", 0.05)
     models, data = tmp_path / "models", tmp_path / "data"
     link(data, models)

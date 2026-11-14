@@ -114,14 +114,20 @@ def _name(entry: Any) -> str | None:
 
 def target(slots: dict[str, Any], names: dict[str, Any], devices: dict[str, Any]) -> str | None:
     """What a command named, as said again after another that named
-    nothing: its devices ("the TV"), else its area ("in the Kitchen"), else
-    its floor; None when it named none. English's words so far."""
+    nothing, in the language's words: its devices ("the TV": its compound
+    module's ``devices``), else its areas or floors ("in the Kitchen": its
+    speech's ``place``); None when it named none, or the language hears no
+    two commands at once."""
+    module = languages.current().compound
+    if module is None:
+        return None
     if slots.get("entity"):
-        return " and ".join(f"the {s}" for s in device_names(slots["entity"], names, devices)) or None
-    for kind, before in (("area", "in the "), ("floor", "")):
+        said = device_names(slots["entity"], names, devices)
+        return module.devices(said) if said else None
+    for kind in ("area", "floor"):
         if slots.get(kind):
-            said = [_name(names.get(f"{kind}s", {}).get(i)) for i in slots[kind]]
-            return " and ".join(f"{before}{s}" for s in said if s) or None
+            said = [name for name in (_name(names.get(f"{kind}s", {}).get(i)) for i in slots[kind]) if name]
+            return languages.speech().place([(kind, name) for name in said]) if said else None
     return None
 
 

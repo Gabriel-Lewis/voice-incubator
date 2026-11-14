@@ -1,15 +1,49 @@
-# Weather (Russian), as the English library's weather.yaml.
+# Weather (Russian), as the English library's weather.yaml: the weather, from
+# the home's weather entity (Settings), or one a command is given (its implied
+# target): now, on a day, this week, and whether it will rain or snow. The
+# forecasts are its daily ones (weather.get_forecasts), so it must have them.
+# A day is said from the forecast_days list: сегодня, завтра, послезавтра, a
+# day of the week (the next one: "в субботу"), the weekend ("на выходных");
+# what falls from weather_kinds: дождь (or a зонт), снег.
+#
+# Temperatures are said in the nominative, as Piper reads a number written in
+# digits: "днём 15, ночью 8 градусов".
 title: Weather
 icon: mdi:weather-partly-cloudy
+
+# Commands shown together in Add a command: each one's topic.
+topics:
+  weather: {title: Weather, icon: mdi:weather-partly-cloudy}
+
+# What the commands share (merged into them with <<, or as a whole).
+shared:
+  # The daily forecast, as the response's result.days.
+  forecast: &forecast
+    - action: weather.get_forecasts
+      target:
+        entity_id: "{{ slots.entity }}"
+      data:
+        type: daily
+      response_variable: found
+    - variables:
+        reply:
+          days: "{{ found[slots.entity[0]].forecast }}"
+    - stop: Read the forecast
+      response_variable: reply
+  needs: &needs
+    - Set the home's weather entity in Settings, or give it one of its
+      own (its implied target). It needs daily forecasts.
 
 commands:
   weather:
     title: What's the weather
+    topic: weather
     icon: mdi:weather-partly-cloudy
-    description: узнать погоду
-    examples: ["какая [сегодня] погода", "какая погода [на улице]", "что с погодой", "будет ли [сегодня] дождь",
-               "что там с погодой", "какая сейчас погода"]
-    require: [[погода, погоду, погоды, погодой, дождь, дождя, прогноз, прогноз погоды]]
+    description: узнать погоду сейчас
+    examples: ["какая [сейчас|сегодня] погода [на улице]", "какая погода [сейчас|сегодня] [на улице]",
+               "что [там] с погодой", "как [там] погода [на улице]"]
+    require: [[погода, погоду, погоды, погодой]]
+    optional: [[сейчас, на улице, там], [какая, как, что, с]]
     # Not a timer's time: "сколько осталось".
     exclude: [осталось, таймер, сколько]
     home: weather
@@ -25,6 +59,181 @@ commands:
       {%- set word = 'градус' if n % 10 == 1 and n % 100 != 11 else
         ('градуса' if n % 10 in [2, 3, 4] and (n % 100 < 12 or n % 100 > 14) else 'градусов') -%}
       Сейчас {{ weather.get(state, state) }}, {{ t }} {{ word }}.
-    needs:
-      - Set the home's weather entity on the Settings page, or give it one of its
-        own (its implied target).
+    needs: *needs
+
+  weather_day:
+    title: The weather on a day
+    topic: weather
+    icon: mdi:weather-cloudy-clock
+    description: узнать прогноз погоды на день
+    # "Какая погода будет завтра", "прогноз на субботу", "какая будет погода
+    # на выходных" (both days). No day said, as its examples: today's ("какая
+    # будет погода").
+    examples: ["какая будет погода", "какой (будет|сегодня) прогноз [погоды]", "какой прогноз погоды",
+               "что (обещают|говорит прогноз)"]
+    require: [[погода, погоду, погоды, погодой, прогноз, прогноза, прогнозу]]
+    optional: [[какая, какой, как, что], [будет, обещают, ожидается, на, по]]
+    exclude: [осталось, таймер, сколько, неделю, неделе, недели]
+    lists:
+      day: {list: forecast_days}
+    home: weather
+    action: *forecast
+    response: >-
+      {%- macro deg(t) -%}
+      {%- set n = t | round | int -%}{%- set a = n | abs -%}
+      {{ n }} {{ 'градус' if a % 10 == 1 and a % 100 != 11 else ('градуса' if a % 10 in [2, 3, 4] and (a % 100 < 12 or a % 100 > 14) else 'градусов') }}
+      {%- endmacro -%}
+      {%- set looks = {'clear-night': 'ясно', 'cloudy': 'облачно', 'exceptional': 'необычная погода', 'fog': 'туман',
+        'hail': 'град', 'lightning': 'гроза', 'lightning-rainy': 'гроза с дождём', 'partlycloudy': 'переменная облачность',
+        'pouring': 'ливень', 'rainy': 'дождь', 'snowy': 'снег', 'snowy-rainy': 'мокрый снег', 'sunny': 'солнечно',
+        'windy': 'ветрено', 'windy-variant': 'ветрено'} -%}
+      {%- set day = slots.day | default('today') -%}
+      {%- set weekdays = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'] -%}
+      {%- set on_day = ['В понедельник', 'Во вторник', 'В среду', 'В четверг', 'В пятницу', 'В субботу', 'В воскресенье'] -%}
+      {%- set for_day = ['понедельник', 'вторник', 'среду', 'четверг', 'пятницу', 'субботу', 'воскресенье'] -%}
+      {%- set today = now().date() -%}
+      {%- if day == 'weekend' -%}
+        {%- set offsets = [0] if today.weekday() == 6 else [(5 - today.weekday()) % 7, (6 - today.weekday()) % 7] -%}
+      {%- else -%}
+        {%- set offsets = [0 if day == 'today' else 1 if day == 'tomorrow' else 2 if day == 'day_after_tomorrow'
+          else (weekdays.index(day) - today.weekday()) % 7] -%}
+      {%- endif -%}
+      {%- set ns = namespace(out=[]) -%}
+      {%- for offset in offsets -%}
+        {%- set date = today + timedelta(days=offset) -%}
+        {%- set when = 'Сегодня' if offset == 0 else 'Завтра' if offset == 1 else on_day[date.weekday()] -%}
+        {%- set when_for = 'сегодня' if offset == 0 else 'завтра' if offset == 1 else for_day[date.weekday()] -%}
+        {%- set on = namespace(f=none) -%}
+        {%- for g in result.days or [] if on.f is none and (as_datetime(g.datetime) | as_local).date() == date -%}
+          {%- set on.f = g -%}
+        {%- endfor -%}
+        {%- if on.f is not none -%}
+          {%- set f = on.f -%}
+          {%- set rain = (f.precipitation_probability | default(0) or 0) | round | int -%}
+          {%- set percent = 'процент' if rain % 10 == 1 and rain % 100 != 11 else
+            ('процента' if rain % 10 in [2, 3, 4] and (rain % 100 < 12 or rain % 100 > 14) else 'процентов') -%}
+          {%- set ns.out = ns.out + [when ~ ' ' ~ looks.get(f.condition, f.condition)
+            ~ (', днём ' ~ (f.temperature | round | int) ~ ', ночью ' ~ deg(f.templow) if f.templow is defined else ', ' ~ deg(f.temperature))
+            ~ (', вероятность дождя ' ~ rain ~ ' ' ~ percent if rain > 0 else '') ~ '.'] -%}
+        {%- else -%}
+          {%- set ns.out = ns.out + ['Прогноза на ' ~ when_for ~ ' пока нет.'] -%}
+        {%- endif -%}
+      {%- endfor -%}
+      {{ ns.out | join(' ') }}
+    needs: *needs
+
+  weather_week:
+    title: The weather this week
+    topic: weather
+    icon: mdi:calendar-week
+    description: узнать прогноз погоды на неделю
+    examples: ["какая погода на (неделю|этой неделе)", "какой прогноз [погоды] на неделю",
+               "какая погода [будет] на ближайшие дни"]
+    require: [[погода, погоду, погоды, прогноз, прогноза], [неделю, неделе, недели, ближайшие дни, ближайшие несколько дней,
+              следующие дни]]
+    optional: [[какая, какой, как, что], [будет, на, эту, этой, всю]]
+    home: weather
+    action: *forecast
+    response: >-
+      {%- set looks = {'clear-night': 'ясно', 'cloudy': 'облачно', 'exceptional': 'необычная погода', 'fog': 'туман',
+        'hail': 'град', 'lightning': 'грозы', 'lightning-rainy': 'грозы', 'partlycloudy': 'переменная облачность',
+        'pouring': 'дожди', 'rainy': 'дожди', 'snowy': 'снег', 'snowy-rainy': 'мокрый снег', 'sunny': 'солнечно',
+        'windy': 'ветрено', 'windy-variant': 'ветрено'} -%}
+      {%- set on_day = ['в понедельник', 'во вторник', 'в среду', 'в четверг', 'в пятницу', 'в субботу', 'в воскресенье'] -%}
+      {%- set wet = ['rainy', 'pouring', 'lightning-rainy', 'snowy-rainy', 'hail'] -%}
+      {%- set days = (result.days or [])[:7] -%}
+      {%- if not days -%}
+      Прогноза нет.
+      {%- else -%}
+      {%- set highs = days | map(attribute='temperature') | list -%}
+      {%- set kinds = days | map(attribute='condition') | map('replace', 'pouring', 'rainy') | list -%}
+      {%- set ns = namespace(top='', count=0, rainy=[]) -%}
+      {%- for c in kinds | unique -%}
+        {%- set n = kinds | select('eq', c) | list | count -%}
+        {%- if n > ns.count -%}{%- set ns.top = c -%}{%- set ns.count = n -%}{%- endif -%}
+      {%- endfor -%}
+      {%- for f in days -%}
+        {%- if f.condition in wet or (f.precipitation_probability | default(0) or 0) >= 50 -%}
+          {%- set ns.rainy = ns.rainy + [on_day[(as_datetime(f.datetime) | as_local).weekday()]] -%}
+        {%- endif -%}
+      {%- endfor -%}
+      {%- set top = highs | max | round | int -%}{%- set a = top | abs -%}
+      {{ ('В основном ' ~ looks.get(ns.top, ns.top)) if ns.count * 2 > days | count else 'Переменчиво' }}, днём от
+      {{ highs | min | round | int }} до {{ top }} {{ 'градуса' if a % 10 == 1 and a % 100 != 11 else 'градусов' }}.
+      {% if ns.rainy %}Дождь вероятен {{ (ns.rainy[:-1] | join(', ') ~ ' и ' ~ ns.rainy[-1]) if ns.rainy | count > 1 else ns.rainy[0] }}.
+      {%- else %}Дождя не ожидается.{%- endif -%}
+      {%- endif -%}
+    needs: *needs
+
+  will_it_rain:
+    title: Will it rain
+    topic: weather
+    icon: mdi:weather-rainy
+    description: сказать, будет ли дождь или снег
+    # "Будет ли завтра дождь", "пойдёт ли снег в субботу", "нужен ли мне
+    # зонт", "будет ли дождь на выходных". Nothing said: today.
+    examples: ["будет ли [сегодня] дождь", "пойдет ли [сегодня] дождь", "нужен ли [мне] зонт [сегодня]"]
+    require: [[будет ли, пойдет ли, ожидается ли, нужен ли, понадобится ли, будет, пойдет, ожидается, нужен, понадобится,
+               вероятность]]
+    optional: [[ли], [мне], [какая]]
+    lists:
+      what: {list: weather_kinds}
+      day: {list: forecast_days}
+    combinations: [[what], [what, day]]
+    home: weather
+    action: *forecast
+    response: >-
+      {%- set looks = {'clear-night': 'ясно', 'cloudy': 'облачно', 'exceptional': 'необычная погода', 'fog': 'туман',
+        'hail': 'град', 'lightning': 'гроза', 'lightning-rainy': 'гроза с дождём', 'partlycloudy': 'переменная облачность',
+        'pouring': 'ливень', 'rainy': 'дождь', 'snowy': 'снег', 'snowy-rainy': 'мокрый снег', 'sunny': 'солнечно',
+        'windy': 'ветрено', 'windy-variant': 'ветрено'} -%}
+      {%- set what = slots.what | default('rain') -%}
+      {%- set falls = ['rainy', 'pouring', 'lightning-rainy', 'snowy-rainy', 'hail'] if what == 'rain' else ['snowy', 'snowy-rainy'] -%}
+      {%- set day = slots.day | default('today') -%}
+      {%- set weekdays = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'] -%}
+      {%- set on_day = ['в понедельник', 'во вторник', 'в среду', 'в четверг', 'в пятницу', 'в субботу', 'в воскресенье'] -%}
+      {%- set today = now().date() -%}
+      {%- if day == 'weekend' -%}
+        {%- set offsets = [0] if today.weekday() == 6 else [(5 - today.weekday()) % 7, (6 - today.weekday()) % 7] -%}
+      {%- else -%}
+        {%- set offsets = [0 if day == 'today' else 1 if day == 'tomorrow' else 2 if day == 'day_after_tomorrow'
+          else (weekdays.index(day) - today.weekday()) % 7] -%}
+      {%- endif -%}
+      {%- set ns = namespace(likely=[], chance=0, other='', known=false) -%}
+      {%- for offset in offsets -%}
+        {%- set date = today + timedelta(days=offset) -%}
+        {%- set when = 'сегодня' if offset == 0 else 'завтра' if offset == 1 else on_day[date.weekday()] -%}
+        {%- set on = namespace(f=none) -%}
+        {%- for g in result.days or [] if on.f is none and (as_datetime(g.datetime) | as_local).date() == date -%}
+          {%- set on.f = g -%}
+        {%- endfor -%}
+        {%- if on.f is not none -%}
+          {%- set f = on.f -%}
+          {%- set rain = (f.precipitation_probability | default(0) or 0) | round | int -%}
+          {%- if f.condition in falls or (what == 'rain' and rain >= 50) -%}
+            {%- set ns.likely = ns.likely + [when] -%}
+            {%- set ns.chance = rain if what == 'rain' and rain > ns.chance else ns.chance -%}
+          {%- elif not ns.known -%}
+            {%- set percent = 'процент' if rain % 10 == 1 and rain % 100 != 11 else
+              ('процента' if rain % 10 in [2, 3, 4] and (rain % 100 < 12 or rain % 100 > 14) else 'процентов') -%}
+            {%- set ns.other = (when[:1] | upper) ~ when[1:] ~ ' ' ~ looks.get(f.condition, f.condition)
+              ~ (', вероятность дождя ' ~ rain ~ ' ' ~ percent if what == 'rain' and rain > 0 else '') -%}
+          {%- endif -%}
+          {%- set ns.known = true -%}
+        {%- endif -%}
+      {%- endfor -%}
+      {%- set c = ns.chance -%}
+      {%- set percent = 'процент' if c % 10 == 1 and c % 100 != 11 else
+        ('процента' if c % 10 in [2, 3, 4] and (c % 100 < 12 or c % 100 > 14) else 'процентов') -%}
+      {%- if ns.likely and ns.chance and ns.likely | count == 1 -%}
+      Да, {{ ns.likely[0] }} вероятность дождя {{ ns.chance }} {{ percent }}.
+      {%- elif ns.likely -%}
+      Да, {{ ns.likely | join(' и ') }} {{ 'вероятен дождь' if what == 'rain' else 'вероятен снег' }}.
+      {%- elif ns.known and day == 'weekend' -%}
+      Скорее всего, на выходных нет.
+      {%- elif ns.known -%}
+      Скорее всего, нет. {{ ns.other }}.
+      {%- else -%}
+      Прогноза так далеко пока нет.
+      {%- endif -%}
+    needs: *needs

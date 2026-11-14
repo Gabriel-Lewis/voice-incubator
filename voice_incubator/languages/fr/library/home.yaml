@@ -1,11 +1,27 @@
 # Covers and locks (French), as the English library's home.yaml: opening,
-# closing, locking, and asking about them. Covers by type ("les volets", "la
-# porte de garage") need no names: their device class says what they are,
-# and the area or floor named -- else the satellite's area -- where. When
-# nothing of that type is in the satellite's area, every one in the home is
-# meant.
+# closing, setting to a position, locking, and asking about them.
+#
+# A cover or a lock by name needs a name for it (Names page). Covers by type
+# ("les volets", "la porte de garage") need no names: their device class says
+# what they are, and the area or floor named -- else the satellite's area --
+# where. When nothing of that type is in the satellite's area, every one in
+# the home is meant ("ouvre la porte de garage" from the cuisine).
+#
+# They run Home Assistant's intents on the covers and locks added to the area
+# on the Names page. Nothing of the type there is their no_devices outcome
+# ("Il n'y a pas de stores dans la chambre"), not nothing happening.
+#
+# Opening, closing, setting and asking about covers come in versions
+# (variants): by type in the satellite's area, a cover by name, by type in an
+# area or on a floor named. Locks have no versions: one is locked or unlocked
+# only by name, and "verrouille tout" is every lock in the home.
 title: Covers and locks
 icon: mdi:door
+
+# Commands shown together in Add a command: each one's topic.
+topics:
+  covers: {title: Blinds and covers, icon: mdi:blinds-horizontal}
+  locks: {title: Locks, icon: mdi:lock}
 
 # What the versions add to a command (merged into them with <<).
 shared:
@@ -29,6 +45,7 @@ shared:
 commands:
   open_covers:
     title: Open covers
+    topic: covers
     icon: mdi:blinds-open
     description: ouvrir les volets
     require: [[ouvre, ouvrir, ouvrez, monte, monter, montez, remonte, lève, lever]]
@@ -56,6 +73,7 @@ commands:
           'shutter': 'volets', 'window': 'fenêtres'} -%}
         {%- set where = (' ' ~ place.said) if (slots.area or slots.floor) else '' -%}
         Il n'y a pas de {{ kinds[slots.device_class] }}{{ where }}.
+    formerly: [open_cover]
     variants:
       here:
         title: Open the blinds in this satellite's area
@@ -82,6 +100,7 @@ commands:
 
   close_covers:
     title: Close covers
+    topic: covers
     icon: mdi:blinds
     description: fermer les volets
     require: [[ferme, fermer, fermez, baisse, baisser, baissez, descends, descendre, descendez]]
@@ -110,6 +129,7 @@ commands:
           'shutter': 'volets', 'window': 'fenêtres'} -%}
         {%- set where = (' ' ~ place.said) if (slots.area or slots.floor) else '' -%}
         Il n'y a pas de {{ kinds[slots.device_class] }}{{ where }}.
+    formerly: [close_cover]
     variants:
       here:
         title: Close the blinds in this satellite's area
@@ -134,8 +154,72 @@ commands:
         title: Close the blinds in an area or floor
         combinations: [[area, device_class], [floor, device_class]]
 
+  # "Mets les stores à 50 pour cent": 100 is open, 0 closed. Only covers that
+  # can be set to a position are (supports); the others there are left out.
+  cover_position:
+    title: Set covers to a position
+    topic: covers
+    icon: mdi:blinds-horizontal
+    description: régler les volets à une position
+    require: [[mets, mais, règle, positionne, ouvre, ferme, monte, baisse, descends]]
+    optional: [[tous, toutes], [à, sur], [pour cent]]
+    exclude: [est, sont, à clé, verrouille]
+    lists:
+      device_class: {list: cover_classes}
+    number: percentage
+    supports: position
+    intent:
+      name: HassSetPosition
+      slots: {position: "{{ slots.percentage }}", domain: cover, device_class: "{{ slots.device_class }}"}
+      anywhere: true
+    verbosity: specific
+    response:
+      done: >-
+        {%- set kinds = {'awning': ['le store banne', 'les stores bannes'], 'blind': ['le store', 'les stores'],
+          'curtain': ['le rideau', 'les rideaux'], 'door': ['la porte', 'les portes'],
+          'garage': ['la porte de garage', 'les portes de garage'], 'gate': ['le portail', 'les portails'],
+          'shade': ['le store enrouleur', 'les stores enrouleurs'], 'shutter': ['le volet', 'les volets'],
+          'window': ['la fenêtre', 'les fenêtres']} -%}
+        {%- set where = (' ' ~ place.said) if (slots.area or slots.floor) else '' -%}
+        Je règle {{ kinds[slots.device_class][0 if result.count == 1 else 1] }}{{ where }} à {{ slots.percentage }} pour cent.
+      no_devices: >-
+        {%- set kinds = {'awning': 'stores bannes', 'blind': 'stores', 'curtain': 'rideaux',
+          'door': 'portes', 'garage': 'portes de garage', 'gate': 'portails', 'shade': 'stores enrouleurs',
+          'shutter': 'volets', 'window': 'fenêtres'} -%}
+        {%- set where = (' ' ~ place.said) if (slots.area or slots.floor) else '' -%}
+        Il n'y a pas de {{ kinds[slots.device_class] }}{{ where }}.
+      not_supported: >-
+        {%- set kinds = {'awning': 'Les stores bannes', 'blind': 'Les stores', 'curtain': 'Les rideaux',
+          'door': 'Les portes', 'garage': 'Les portes de garage', 'gate': 'Les portails', 'shade': 'Les stores enrouleurs',
+          'shutter': 'Les volets', 'window': 'Les fenêtres'} -%}
+        {%- set where = (' ' ~ place.said) if (slots.area or slots.floor) else '' -%}
+        {{ kinds[slots.device_class] }}{{ where }} ne peuvent pas être réglés à une position.
+    variants:
+      here:
+        title: Set the blinds in this satellite's area to a position
+        needs: *nothing_here
+      device:
+        <<: *cover
+        title: Set a cover to a position by name
+        icon: mdi:window-shutter-settings
+        description: régler quelque chose à une position
+        lists: null
+        combinations: [[entity, percentage], [entity, area, percentage]]
+        intent:
+          name: HassSetPosition
+          slots: {position: "{{ slots.percentage }}"}
+        response:
+          done: "Je règle {{ names.get(slots.entity[0], state_attr(slots.entity[0], 'friendly_name')) }} à {{ slots.percentage }} pour cent."
+        needs:
+          - Add names for the covers it may set (Names page).
+      place:
+        <<: *place
+        title: Set the blinds in an area or floor to a position
+        combinations: [[area, device_class, percentage], [floor, device_class, percentage]]
+
   lock:
     title: Lock a lock
+    topic: locks
     icon: mdi:lock
     description: fermer une porte à clé
     require: [[verrouille, verrouiller, verrouillez, à clé]]
@@ -158,6 +242,7 @@ commands:
 
   unlock:
     title: Unlock a lock
+    topic: locks
     icon: mdi:lock-open-variant
     description: déverrouiller une porte
     # "des verrouille": déverrouille as a speech-to-text often writes it.
@@ -176,12 +261,12 @@ commands:
         brief: Déverrouillage en cours.
         specific: "Je déverrouille {{ names.get(slots.entity[0], state_attr(slots.entity[0], 'friendly_name')) }}."
     needs:
-      - Add names for the locks it may unlock (Names page). Anyone the satellite
-        hears can unlock them; keep it to the satellites that should with a
-        command group.
+      - Add names for the locks it may unlock (Names). Anyone a satellite hears
+        can unlock them; turn it off in the areas that shouldn't.
 
   lock_all:
     title: Lock up
+    topic: locks
     icon: mdi:shield-lock
     description: verrouiller toutes les portes
     examples: ["verrouille tout", "verrouille toutes les portes", "ferme tout à clé"]
@@ -197,6 +282,7 @@ commands:
 
   are_covers_open:
     title: Are covers open
+    topic: covers
     icon: mdi:blinds-horizontal
     description: savoir si les volets sont ouverts
     require: [[est, sont]]
@@ -242,6 +328,7 @@ commands:
       {{ (ns.opened[:-1] | join(', ') ~ ' et ' ~ ns.opened[-1]) if count > 1 else ns.opened[0] }}
       {{- (' est ouvert' ~ kind[2]) if count == 1 else (' sont ouvert' ~ kind[2] ~ 's') }}.
       {%- endif -%}
+    formerly: [is_cover_open]
     variants:
       here:
         title: Are the blinds open in this satellite's area
@@ -274,6 +361,7 @@ commands:
 
   is_locked:
     title: Is a lock locked
+    topic: locks
     icon: mdi:lock-question
     description: savoir si une porte est verrouillée
     require: [[est, sont]]
@@ -307,6 +395,7 @@ commands:
 
   all_locked:
     title: Is everything locked
+    topic: locks
     icon: mdi:lock-alert
     description: savoir si toutes les portes sont verrouillées
     require: [[est, sont], [tout, toutes, tous, portes]]

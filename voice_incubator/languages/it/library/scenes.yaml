@@ -3,9 +3,9 @@ title: Scenes and scripts
 icon: mdi:palette
 
 commands:
-  # A scene or a script by its name (Names page): "make it cozy", "movie
-  # time", "good night". Names may repeat -- a Cozy in the living room and one
-  # in the bedroom -- and then it is the one in the room said, else in the
+  # A scene or a script by its name (Names page): "attiva relax", "serata
+  # cinema", "buonanotte". Names may repeat -- un Relax in soggiorno e uno in
+  # camera -- and then it is the one in the room said, else in the
   # satellite's area.
   scene:
     title: Activate a scene
@@ -25,7 +25,7 @@ commands:
         specific: "Ho attivato {{ names.get(slots.entity[0], state_attr(slots.entity[0], 'friendly_name')) }}."
     needs:
       - Add names for the scenes it may activate (Names page). One in each room
-        may share a name ("cozy").
+        may share a name ("relax").
 
   script:
     title: Run a script

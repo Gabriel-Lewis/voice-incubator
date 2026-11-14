@@ -1,24 +1,213 @@
-# Weather (French), as the English library's weather.yaml.
+# Weather (French), as the English library's weather.yaml: from the home's
+# weather entity (Settings), or one a command is given (its implied target):
+# now, on a day, this week, and whether it will rain or snow. The forecasts
+# are its daily ones (weather.get_forecasts), so it must have them. A day is
+# said from the forecast_days list: aujourd'hui, demain, après-demain, a day
+# of the week (the next one), ce week-end; what falls from weather_kinds:
+# pluie (or a parapluie), neige.
 title: Weather
 icon: mdi:weather-partly-cloudy
+
+# Commands shown together in Add a command: each one's topic.
+topics:
+  weather: {title: Weather, icon: mdi:weather-partly-cloudy}
+
+# What the commands share (merged into them with <<, or as a whole).
+shared:
+  # The daily forecast, as the response's result.days.
+  forecast: &forecast
+    - action: weather.get_forecasts
+      target:
+        entity_id: "{{ slots.entity }}"
+      data:
+        type: daily
+      response_variable: found
+    - variables:
+        reply:
+          days: "{{ found[slots.entity[0]].forecast }}"
+    - stop: Read the forecast
+      response_variable: reply
+  needs: &needs
+    - Set the home's weather entity in Settings, or give it one of its
+      own (its implied target). It needs daily forecasts.
 
 commands:
   weather:
     title: What's the weather
+    topic: weather
     icon: mdi:weather-partly-cloudy
     description: savoir le temps qu'il fait
-    examples: ["quel temps fait il [aujourd'hui]", "est ce qu'il va pleuvoir [aujourd'hui]", "quelle est la météo"]
-    require: [[météo, pleuvoir, prévisions, quel temps]]
+    examples: ["quel temps fait il [aujourd'hui|maintenant|dehors]", "il fait quel temps [aujourd'hui|dehors]",
+               "quelle est la météo [aujourd'hui|maintenant]"]
+    require: [[météo, quel temps]]
+    optional: [[maintenant, en ce moment, dehors, fait il, il fait, est]]
     home: weather
     response: >-
-      {%- set meteo = {'clear-night': 'dégagé', 'cloudy': 'nuageux', 'exceptional': 'exceptionnel',
-        'fog': 'brumeux', 'hail': 'de la grêle', 'lightning': 'orageux', 'lightning-rainy': 'orageux et pluvieux',
-        'partlycloudy': 'partiellement nuageux', 'pouring': 'de fortes pluies', 'rainy': 'pluvieux',
-        'snowy': 'neigeux', 'snowy-rainy': 'de la neige fondue', 'sunny': 'ensoleillé', 'windy': 'venteux',
-        'windy-variant': 'venteux et nuageux'} -%}
-      {%- set state = states(slots.entity[0]) -%}
-      Le temps est {{ meteo.get(state, state) }}, avec
-      {{ state_attr(slots.entity[0], 'temperature') | round }} degrés.
-    needs:
-      - Set the home's weather entity on the Settings page, or give it one of its
-        own (its implied target).
+      {%- set said = {'clear-night': 'dégagé', 'cloudy': 'nuageux', 'exceptional': 'inhabituel', 'fog': 'brumeux',
+        'hail': 'orageux', 'lightning': 'orageux', 'lightning-rainy': 'orageux', 'partlycloudy': 'partiellement nuageux',
+        'pouring': 'très pluvieux', 'rainy': 'pluvieux', 'snowy': 'neigeux', 'snowy-rainy': 'neigeux et pluvieux',
+        'sunny': 'ensoleillé', 'windy': 'venteux', 'windy-variant': 'venteux'} -%}
+      {%- set now_is = states(slots.entity[0]) -%}
+      Le temps est {{ said.get(now_is, now_is) }} et il fait {{ state_attr(slots.entity[0], 'temperature') | round }} degrés.
+    needs: *needs
+
+  weather_day:
+    title: The weather on a day
+    topic: weather
+    icon: mdi:weather-cloudy-clock
+    description: savoir la météo prévue pour un jour
+    # "Quel temps fera-t-il demain", "la météo pour samedi", "quelles sont les
+    # prévisions pour ce week-end" (both days). No day said, as its examples:
+    # today's ("quel temps va-t-il faire").
+    examples: ["quel temps (va t il faire|fera t il)", "quelles sont les prévisions [météo]", "quelle est la météo prévue"]
+    require: [[météo, prévisions, quel temps]]
+    optional: [[quel, quelle, quelles, est, sont, pour, fera t il, va t il faire, va faire, fera, prévue, prévu, prévues]]
+    lists:
+      day: {list: forecast_days}
+    home: weather
+    action: *forecast
+    response: >-
+      {%- set looks = {'clear-night': 'dégagé', 'cloudy': 'nuageux', 'exceptional': 'inhabituel', 'fog': 'brumeux',
+        'hail': 'orageux', 'lightning': 'orageux', 'lightning-rainy': 'orageux', 'partlycloudy': 'partiellement nuageux',
+        'pouring': 'très pluvieux', 'rainy': 'pluvieux', 'snowy': 'neigeux', 'snowy-rainy': 'neigeux et pluvieux',
+        'sunny': 'ensoleillé', 'windy': 'venteux', 'windy-variant': 'venteux'} -%}
+      {%- set day = slots.day | default('today') -%}
+      {%- set weekdays = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'] -%}
+      {%- set jours = ['lundi', 'mardi', 'mercredi', 'jeudi', 'vendredi', 'samedi', 'dimanche'] -%}
+      {%- set today = now().date() -%}
+      {%- if day == 'weekend' -%}
+        {%- set offsets = [0] if today.weekday() == 6 else [(5 - today.weekday()) % 7, (6 - today.weekday()) % 7] -%}
+      {%- else -%}
+        {%- set offsets = [0 if day == 'today' else 1 if day == 'tomorrow' else 2 if day == 'day_after_tomorrow'
+          else (weekdays.index(day) - today.weekday()) % 7] -%}
+      {%- endif -%}
+      {%- set ns = namespace(out=[]) -%}
+      {%- for offset in offsets -%}
+        {%- set date = today + timedelta(days=offset) -%}
+        {%- set when = "aujourd'hui" if offset == 0 else 'demain' if offset == 1 else jours[date.weekday()] -%}
+        {%- set on = namespace(f=none) -%}
+        {%- for g in result.days or [] if on.f is none and (as_datetime(g.datetime) | as_local).date() == date -%}
+          {%- set on.f = g -%}
+        {%- endfor -%}
+        {%- if on.f is not none -%}
+          {%- set f = on.f -%}
+          {%- set rain = (f.precipitation_probability | default(0) or 0) | round | int -%}
+          {%- set ns.out = ns.out + [(when[:1] | upper) ~ when[1:] ~ ', temps ' ~ looks.get(f.condition, f.condition)
+            ~ ', avec un maximum de ' ~ (f.temperature | round | int) ~ ' degrés'
+            ~ (' et un minimum de ' ~ (f.templow | round | int) if f.templow is defined else '')
+            ~ (', et ' ~ rain ~ ' pour cent de risque de pluie' if rain > 0 else '') ~ '.'] -%}
+        {%- else -%}
+          {%- set ns.out = ns.out + ["Il n'y a pas encore de prévisions pour " ~ when ~ '.'] -%}
+        {%- endif -%}
+      {%- endfor -%}
+      {{ ns.out | join(' ') }}
+    needs: *needs
+
+  weather_week:
+    title: The weather this week
+    topic: weather
+    icon: mdi:calendar-week
+    description: savoir la météo prévue pour la semaine
+    examples: ["quelle est la météo (de|pour) (la|cette) semaine", "quelles sont les prévisions pour (la|cette) semaine",
+               "quel temps va t il faire (cette semaine|les prochains jours)"]
+    require: [[météo, prévisions, quel temps], [semaine, prochains jours, jours à venir]]
+    optional: [[quel, quelle, quelles, est, sont, pour, cette, fera t il, va t il faire, va faire, fera, prévue, prévues]]
+    home: weather
+    action: *forecast
+    response: >-
+      {%- set looks = {'clear-night': 'dégagé', 'cloudy': 'nuageux', 'exceptional': 'inhabituel', 'fog': 'brumeux',
+        'hail': 'orageux', 'lightning': 'orageux', 'lightning-rainy': 'orageux', 'partlycloudy': 'partiellement nuageux',
+        'pouring': 'très pluvieux', 'rainy': 'pluvieux', 'snowy': 'neigeux', 'snowy-rainy': 'neigeux et pluvieux',
+        'sunny': 'ensoleillé', 'windy': 'venteux', 'windy-variant': 'venteux'} -%}
+      {%- set jours = ['lundi', 'mardi', 'mercredi', 'jeudi', 'vendredi', 'samedi', 'dimanche'] -%}
+      {%- set wet = ['rainy', 'pouring', 'lightning-rainy', 'snowy-rainy', 'hail'] -%}
+      {%- set days = (result.days or [])[:7] -%}
+      {%- if not days -%}
+      Il n'y a pas de prévisions.
+      {%- else -%}
+      {%- set highs = days | map(attribute='temperature') | list -%}
+      {%- set kinds = days | map(attribute='condition') | map('replace', 'pouring', 'rainy') | list -%}
+      {%- set ns = namespace(top='', count=0, rainy=[]) -%}
+      {%- for c in kinds | unique -%}
+        {%- set n = kinds | select('eq', c) | list | count -%}
+        {%- if n > ns.count -%}{%- set ns.top = c -%}{%- set ns.count = n -%}{%- endif -%}
+      {%- endfor -%}
+      {%- for f in days -%}
+        {%- if f.condition in wet or (f.precipitation_probability | default(0) or 0) >= 50 -%}
+          {%- set ns.rainy = ns.rainy + [jours[(as_datetime(f.datetime) | as_local).weekday()]] -%}
+        {%- endif -%}
+      {%- endfor -%}
+      {{ ('Temps plutôt ' ~ looks.get(ns.top, ns.top)) if ns.count * 2 > days | count else 'Temps variable' }}, avec des
+      maximales de {{ highs | min | round | int }} à {{ highs | max | round | int }} degrés.
+      {% if ns.rainy %}De la pluie est probable {{ (ns.rainy[:-1] | join(', ') ~ ' et ' ~ ns.rainy[-1]) if ns.rainy | count > 1 else ns.rainy[0] }}.
+      {%- else %}Aucune pluie n'est prévue.{%- endif -%}
+      {%- endif -%}
+    needs: *needs
+
+  will_it_rain:
+    title: Will it rain
+    topic: weather
+    icon: mdi:weather-rainy
+    description: savoir s'il va pleuvoir ou neiger
+    # "Est-ce qu'il va pleuvoir demain", "va-t-il neiger samedi", "est-ce que
+    # j'ai besoin d'un parapluie", "est-ce qu'il va pleuvoir ce week-end".
+    # Nothing said: today.
+    examples: ["est ce qu'il va pleuvoir", "est ce que j'ai besoin d'un parapluie [aujourd'hui]", "va t il pleuvoir"]
+    require: [[va, va t il, aura, aura t il, besoin, risque, faut il, prendre]]
+    optional: [[est ce qu'il, est ce que, il, y, j'ai, un]]
+    lists:
+      what: {list: weather_kinds}
+      day: {list: forecast_days}
+    combinations: [[what], [what, day]]
+    home: weather
+    action: *forecast
+    response: >-
+      {%- set looks = {'clear-night': 'dégagé', 'cloudy': 'nuageux', 'exceptional': 'inhabituel', 'fog': 'brumeux',
+        'hail': 'orageux', 'lightning': 'orageux', 'lightning-rainy': 'orageux', 'partlycloudy': 'partiellement nuageux',
+        'pouring': 'très pluvieux', 'rainy': 'pluvieux', 'snowy': 'neigeux', 'snowy-rainy': 'neigeux et pluvieux',
+        'sunny': 'ensoleillé', 'windy': 'venteux', 'windy-variant': 'venteux'} -%}
+      {%- set what = slots.what | default('rain') -%}
+      {%- set falls = ['rainy', 'pouring', 'lightning-rainy', 'snowy-rainy', 'hail'] if what == 'rain' else ['snowy', 'snowy-rainy'] -%}
+      {%- set day = slots.day | default('today') -%}
+      {%- set weekdays = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'] -%}
+      {%- set jours = ['lundi', 'mardi', 'mercredi', 'jeudi', 'vendredi', 'samedi', 'dimanche'] -%}
+      {%- set today = now().date() -%}
+      {%- if day == 'weekend' -%}
+        {%- set offsets = [0] if today.weekday() == 6 else [(5 - today.weekday()) % 7, (6 - today.weekday()) % 7] -%}
+      {%- else -%}
+        {%- set offsets = [0 if day == 'today' else 1 if day == 'tomorrow' else 2 if day == 'day_after_tomorrow'
+          else (weekdays.index(day) - today.weekday()) % 7] -%}
+      {%- endif -%}
+      {%- set ns = namespace(likely=[], chance=0, other='', known=false) -%}
+      {%- for offset in offsets -%}
+        {%- set date = today + timedelta(days=offset) -%}
+        {%- set when = "aujourd'hui" if offset == 0 else 'demain' if offset == 1 else jours[date.weekday()] -%}
+        {%- set on = namespace(f=none) -%}
+        {%- for g in result.days or [] if on.f is none and (as_datetime(g.datetime) | as_local).date() == date -%}
+          {%- set on.f = g -%}
+        {%- endfor -%}
+        {%- if on.f is not none -%}
+          {%- set f = on.f -%}
+          {%- set rain = (f.precipitation_probability | default(0) or 0) | round | int -%}
+          {%- if f.condition in falls or (what == 'rain' and rain >= 50) -%}
+            {%- set ns.likely = ns.likely + [when] -%}
+            {%- set ns.chance = rain if what == 'rain' and rain > ns.chance else ns.chance -%}
+          {%- elif not ns.known -%}
+            {%- set ns.other = (when[:1] | upper) ~ when[1:] ~ ', temps ' ~ looks.get(f.condition, f.condition)
+              ~ (', avec ' ~ rain ~ ' pour cent de risque de pluie' if what == 'rain' and rain > 0 else '') -%}
+          {%- endif -%}
+          {%- set ns.known = true -%}
+        {%- endif -%}
+      {%- endfor -%}
+      {%- if ns.likely and ns.chance and ns.likely | count == 1 -%}
+      Oui, il y a {{ ns.chance }} pour cent de risque de pluie {{ ns.likely[0] }}.
+      {%- elif ns.likely -%}
+      Oui, {{ 'de la pluie' if what == 'rain' else 'de la neige' }} est probable {{ ns.likely | join(' et ') }}.
+      {%- elif ns.known and day == 'weekend' -%}
+      Probablement pas ce week-end.
+      {%- elif ns.known -%}
+      Probablement pas. {{ ns.other }}.
+      {%- else -%}
+      Il n'y a pas encore de prévisions aussi loin.
+      {%- endif -%}
+    needs: *needs

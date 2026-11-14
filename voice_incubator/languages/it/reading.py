@@ -10,6 +10,11 @@ import re
 PLACE_BEFORE = ("in", "nel", "nella", "nello", "nell'", "nei", "negli", "nelle", "a", "al", "alla", "allo", "all'",
                 "su", "sul", "sulla", "sull'", "da", "per")
 ARTICLES = ("il", "lo", "la", "l'", "i", "gli", "le")
+WHEN_STARTS = ("il", "la", "i", "le", "l'", "a", "alle", "per", "tra", "fra")
+"""Words (of PLACE_BEFORE and ARTICLES, fillers or keywords) an alarm's time
+or a reminder may start with, kept there: "il martedì" (every Tuesday), "a
+mezzogiorno", "per le sette", "tra 8 ore" (voice_incubator/engine.py, free
+text)."""
 
 # ------------------------------------------------------------------- music
 

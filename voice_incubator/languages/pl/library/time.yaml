@@ -1,10 +1,17 @@
-# Date and time (Polish), as the English library's time.yaml.
+# Date and time (Polish), as the English library's time.yaml: the time and
+# the date now. A time from now ("która będzie za 45 minut") is a question:
+# the clock skill's.
 title: Date and time
 icon: mdi:clock-outline
+
+# Commands shown together in Add a command: each one's topic.
+topics:
+  date_and_time: {title: Date and time, icon: mdi:clock-outline}
 
 commands:
   what_time:
     title: What time is it
+    topic: date_and_time
     icon: mdi:clock-outline
     description: sprawdzić, która jest godzina
     examples: ["która [jest] [teraz] godzina", "jaka jest [teraz] godzina", "podaj godzinę", "powiedz która godzina"]
@@ -32,6 +39,7 @@ commands:
 
   what_date:
     title: What's the date
+    topic: date_and_time
     icon: mdi:calendar-today
     description: sprawdzić dzisiejszą datę
     examples: ["jaki [jest] [dzisiaj|dziś] dzień", "jaki dzień [jest] [dzisiaj|dziś]", "jaka [jest] [dzisiaj|dziś] data",

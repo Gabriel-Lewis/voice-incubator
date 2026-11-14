@@ -1,7 +1,9 @@
 # Dutch sentences and what each must become with the Dutch library, for
 # scripts/bench_language.py (spoken) and tests/test_languages.py (typed). The
 # home: these names, the devices in these rooms, a satellite in the kantoor.
-# Numbers are written as said, for text-to-speech.
+# Numbers are written as said, for text-to-speech. An alarm's or reminder's
+# time is compared by when the calendar (calendar.py) reads it, on a
+# Wednesday afternoon; without a time, as its words.
 names:
   areas:
     keuken: Keuken
@@ -20,6 +22,8 @@ names:
     climate.thermostaat: Thermostaat
     cover.dakraam: Dakraam
     lock.voordeur: Voordeur
+    sensor.buitentemperatuur: Buitentemperatuur
+    binary_sensor.achterdeur: Achterdeur
 rooms:
   fan.plafondventilator: slaapkamer
   media_player.keuken: keuken
@@ -52,7 +56,7 @@ sentences:
   - ["Welke datum is het?", what_date, {}, "a question"]
   - ["Speel jazz.", play_music_here, {query: jazz}, "free text"]
   - ["Speel jazz in de keuken.", play_music_place, {area: [keuken], query: jazz}, "free text, then a place"]
-  - ["Pauzeer de muziek.", pause_music_here, {}, "music"]
+  - ["Pauzeer de muziek.", pause_music_here, {kind: music}, "music, the kind"]
   - ["Zet het volume op dertig procent.", set_volume_here, {percentage: 30}, "music, a number"]
   - ["Wat speelt er in de keuken?", whats_playing_place, {area: [keuken]}, "music, a place"]
   - ["Verplaats de muziek naar de keukenspeaker.", move_music_device, {entity: [media_player.keuken]}, "music, a device"]
@@ -62,7 +66,86 @@ sentences:
   - ["Zet een timer van vijf minuten.", start_timer, {duration: 300}, "a duration"]
   - ["Timer voor een half uur.", start_timer, {duration: 1800}, "a duration said with its unit"]
   - ["Zet een timer genaamd pizza voor tien minuten.", start_timer, {duration: 600, timer: pizza}, "a named timer"]
-  - ["Maak me wakker om half zeven.", set_alarm, {time: half zeven}, "a clock time"]
+  - ["Maak me wakker om half zeven.", set_alarm, {time: om half zeven}, "a clock time"]
   - ["Annuleer de timer.", cancel_timer, {}, "a timer"]
   - ["Hoe lang loopt de timer nog?", timer_status, {}, "a timer question"]
   - ["Laat maar.", never_mind, {}, "an example sentence"]
+  # Climate: the home's thermostat.
+  - ["Zet de temperatuur op twintig graden.", set_temperature_here, {temperature: 20}, "the home's thermostat"]
+  - ["Zet de verwarming hoger.", heat_up, {}, "a step up"]
+  - ["Zet de verwarming lager.", heat_down, {}, "a step down"]
+  - ["Waar staat de thermostaat op?", thermostat, {}, "an example sentence"]
+  - ["Hoe warm is het binnen?", thermostat, {}, "inside"]
+  - ["Zet de thermostaat op koelen.", set_thermostat_mode, {mode: cool}, "a mode"]
+  - ["In welke modus staat de thermostaat?", thermostat_mode, {}, "the mode, asked"]
+  - ["Zet de ventilatorstand op automatisch.", set_thermostat_fan, {mode: auto}, "a fan mode"]
+  - ["Wat is de ventilatorstand?", thermostat_fan, {}, "the fan, asked"]
+  # Covers to a position.
+  - ["Zet de rolluiken op vijftig procent.", cover_position_here, {device_class: shutter, percentage: 50}, "by type, a number"]
+  - ["Zet het dakraam op dertig procent.", cover_position_device, {entity: [cover.dakraam], percentage: 30}, "by name, a number"]
+  # Lights by a step, and their white.
+  - ["Maak het licht in de woonkamer feller.", brighter_place, {area: [woonkamer]}, "brighter, an area"]
+  - ["Dim het licht in de slaapkamer.", dimmer_place, {area: [slaapkamer]}, "dimmer, an area"]
+  - ["Maak het een beetje lichter.", brighter_here, {}, "an example sentence"]
+  - ["Zet de staande lamp op warm wit.", light_temperature_device, {entity: [light.staande_lamp], color_temperature: "2700"}, "a white by name"]
+  - ["Dim het licht naar twintig procent.", set_brightness_here, {percentage: 20}, "dimmed to a number"]
+  # Music: the kind, and the speaker's own playlist.
+  - ["Pauzeer de tv.", pause_music_here, {kind: tv}, "the TV"]
+  - ["Zet de tv zachter.", volume_down_here, {kind: tv}, "the TV, quieter"]
+  - ["Speel mijn afspeellijst.", play_my_playlist, {}, "an example sentence"]
+  # Satellites.
+  - ["Kondig aan dat we gaan eten.", announce, {message: we gaan eten}, "free text to the end"]
+  - ["Verbind me met de keuken.", intercom, {area: [keuken]}, "an area"]
+  - ["Praat harder.", own_volume_up, {}, "its own volume"]
+  - ["Zet je volume op veertig procent.", own_volume_set, {percentage: 40}, "its own volume, a number"]
+  # People and sensors.
+  - ["Wie ben ik?", who_am_i, {}, "an example sentence"]
+  - ["Wat is de buitentemperatuur?", sensor_value, {entity: [sensor.buitentemperatuur]}, "a sensor by name"]
+  - ["Is de achterdeur open?", binary_sensor_state, {entity: [binary_sensor.achterdeur], asked: open}, "a binary sensor, asked"]
+  # Lists.
+  - ["Haal melk van de boodschappenlijst.", shopping_list_remove, {item: melk}, "taken off"]
+  - ["Streep melk door op de boodschappenlijst.", shopping_list_check, {item: melk}, "checked off"]
+  - ["Wat staat er op de boodschappenlijst?", shopping_list_items, {}, "an example sentence"]
+  - ["Zet stofzuigen op de takenlijst.", todo_add, {item: stofzuigen}, "the home's to-do list"]
+  - ["Zet stofzuigen op mijn takenlijst.", todo_add_mine, {item: stofzuigen}, "my to-do list"]
+  - ["Vink stofzuigen af op mijn takenlijst.", todo_check_mine, {item: stofzuigen}, "checked off mine"]
+  - ["Wat staat er op mijn takenlijst?", todo_items_mine, {}, "an example sentence"]
+  # Weather.
+  - ["Hoe is het weer?", weather, {}, "now"]
+  - ["Hoe wordt het weer morgen?", weather_day, {day: tomorrow}, "a day"]
+  - ["Hoe wordt het weer deze week?", weather_week, {}, "the week"]
+  - ["Gaat het zaterdag regenen?", will_it_rain, {what: rain, day: saturday}, "rain on a day"]
+  - ["Gaat het morgen sneeuwen?", will_it_rain, {what: snow, day: tomorrow}, "snow"]
+  - ["Wat staat er vandaag in mijn agenda?", my_calendar, {}, "an example sentence"]
+  # Alarms, on the calendar.
+  - ["Zet een wekker voor morgen om zeven uur 's avonds.", set_alarm, {time: "morgen om 19 uur"}, "a day, 's avonds"]
+  - ["Zet een wekker om half acht.", set_alarm, {time: "7:30"}, "half: the hour to come, the next 7:30"]
+  - ["Maak me morgen om kwart over zes wakker.", set_alarm, {time: "morgen 6:15"}, "wakker last"]
+  - ["Wek me morgen om tien voor half acht.", set_alarm, {time: "morgen 7:20"}, "tien voor half"]
+  - ["Zet een wekker voor morgen om kwart voor zeven.", set_alarm, {time: "morgen 6:45"}, "kwart voor"]
+  - ["Zet een wekker voor elke werkdag om kwart voor zeven.", set_alarm, {time: "elke werkdag om 6:45"}, "repeating"]
+  - ["Wek me zaterdag om zeven uur.", set_alarm, {time: "zaterdag om 7 uur"}, "a weekday, the morning"]
+  - ["Zet een wekker om twaalf uur 's middags.", set_alarm, {time: "12 uur 's middags"}, "noon"]
+  - ["Zet een wekker om tien uur vanavond.", set_alarm, {time: "22:00"}, "vanavond"]
+  - ["Zet een wekker morgen om acht uur 's ochtends.", set_alarm, {time: "morgen om 8 uur"}, "the day first"]
+  - ["Zet een wekker over twintig minuten.", set_alarm, {time: "over 20 minuten"}, "from now"]
+  - ["Wek me over acht uur.", set_alarm, {time: "over 8 uur"}, "from now: over, not o'clock"]
+  - ["Annuleer mijn wekker voor morgen.", cancel_alarm, {time: morgen}, "a day alone"]
+  - ["Annuleer de wekker van zeven uur.", cancel_alarm, {time: zeven uur}, "a time"]
+  - ["Zet de wekker van zeven uur uit.", cancel_alarm, {time: zeven uur}, "zet ... uit"]
+  - ["Welke wekkers heb ik?", alarm_status, {}, "an example sentence"]
+  # Reminders, on the calendar.
+  - ["Wat zijn mijn herinneringen?", reminder_status, {}, "an example sentence"]
+  - ["Herinner me om vijf uur 's middags eraan om mama te bellen.", remind_me, {entity: [todo.reminders], reminder: om 17 uur om mama te bellen}, "time first"]
+  - ["Herinner me elke dinsdag om zeven uur 's avonds aan de vuilnisbak.", remind_me, {entity: [todo.reminders], reminder: aan de vuilnisbak elke dinsdag om 19 uur}, "repeating, time first"]
+  - ["Herinner me over tien minuten aan de oven.", remind_me, {entity: [todo.reminders], reminder: over 10 minuten aan de oven}, "from now"]
+  - ["Herinner me morgen om negen uur eraan om de tandarts te bellen.", remind_me, {entity: [todo.reminders], reminder: morgen om 9 uur om de tandarts te bellen}, "a day and a time first"]
+  - ["Herinner me eraan om de planten water te geven om acht uur.", remind_me, {entity: [todo.reminders], reminder: om 20 uur om de planten water te geven}, "time last"]
+  - ["Herinner me om tien minuten te rusten om vijf uur.", remind_me, {entity: [todo.reminders], reminder: om 17 uur om tien minuten te rusten}, "a length that is the reminder's"]
+  - ["Herinner me eraan dat de loodgieter vrijdag om drie uur komt.", remind_me, {entity: [todo.reminders], reminder: vrijdag om 15 uur dat de loodgieter komt}, "the time in a clause"]
+  - ["Herinner me eraan om melk te kopen.", remind_me, {entity: [todo.reminders], reminder: eraan om melk te kopen}, "no time: the to-do list"]
+  - ["Annuleer mijn herinnering om mama te bellen.", cancel_reminder, {reminder: om mama te bellen}, "what it is about"]
+  - ["Verwijder de herinnering over de tandarts.", cancel_reminder, {reminder: over de tandarts}, "over"]
+  - ["Verwijder de herinnering van morgen.", cancel_reminder, {reminder: morgen}, "its day"]
+  - ["Annuleer de herinnering van vijf uur.", cancel_reminder, {reminder: vijf uur}, "its time"]
+  - ["Annuleer mijn herinnering.", cancel_reminder, {}, "the only one, or which"]

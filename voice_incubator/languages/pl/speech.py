@@ -51,6 +51,10 @@ def confirm_question(description: str) -> str:
 CONFIRM_NO = "Dobrze."
 CONFIRM_UNCLEAR = "Przepraszam, nie rozumiem odpowiedzi."
 NO_COMMANDS = "Nie ma jeszcze żadnych poleceń głosowych. Dodaj je w aplikacji Voice Incubator."
+
+VOICE_SAMPLE = "Cześć! Tak brzmi mój głos. Włączono światło w kuchni."
+"""What the Settings page's Try says in a voice, when it is given nothing else."""
+
 TIMERS_NEED_INTEGRATION = "Minutniki wymagają integracji Voice Incubator w Home Assistant."
 
 NO_AREA = 'Nie wiem, w jakim obszarze jestem. Przypisz temu satelicie obszar.'

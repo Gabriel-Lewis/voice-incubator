@@ -86,9 +86,14 @@ class Voice:
 
 
 @cache
-def catalog() -> dict[str, Voice]:
-    """Every voice the catalog lists, by key."""
-    data = json.loads(CATALOG.read_text(encoding="utf-8"))
+def _data() -> dict:
+    return json.loads(CATALOG.read_text(encoding="utf-8"))
+
+
+@cache
+def everything() -> dict[str, Voice]:
+    """Every voice the catalog lists, by key, whatever its language."""
+    data = _data()
     return {
         key: Voice(key, v["name"], v["language"], v["quality"], tuple(v["speakers"]),
                    {path: (size, md5) for path, (size, md5) in v["files"].items()}, data["revision"])
@@ -96,9 +101,26 @@ def catalog() -> dict[str, Voice]:
     }
 
 
+def catalog() -> dict[str, Voice]:
+    """The voices the app may speak with, by key: those in its language (its
+    pack's ``piper_languages``). One saved in another -- from before the app's
+    language changed -- is no voice: the language's own speaks."""
+    from . import languages  # pylint: disable=import-outside-toplevel
+
+    wanted = languages.current().piper_languages
+    return {key: voice for key, voice in everything().items() if voice.language in wanted}
+
+
 def voices(languages: tuple[str, ...]) -> list[Voice]:
     """Those in ``languages`` (en_US, en_GB), by language, then name."""
-    return sorted((v for v in catalog().values() if v.language in languages), key=lambda v: (v.language, v.key))
+    return sorted((v for v in everything().values() if v.language in languages), key=lambda v: (v.language, v.key))
+
+
+def regions(languages: tuple[str, ...]) -> dict[str, str]:
+    """What each of ``languages`` is called, in English ("US English",
+    "German (Germany)"), in their order: the web UI groups voices by them."""
+    names = _data().get("regions") or {}
+    return {code: names.get(code, code) for code in languages}
 
 
 def synthesis(settings: dict[str, object], speakers: dict[str, int]) -> dict[str, object]:

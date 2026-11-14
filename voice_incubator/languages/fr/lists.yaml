@@ -16,6 +16,11 @@ colors:
 on_off:
   "on": [allumé, allumée, allumés, allumées]
   "off": [éteint, éteinte, éteints, éteintes]
+media_kinds:
+  # What plays (Music library): "la musique" is Music Assistant's players, "la
+  # télé" the media players whose device class is tv.
+  music: [musique]
+  tv: [télé, télévision, tv]
 cover_classes:
   awning: [store banne, stores bannes, auvent, auvents, marquise]
   blind: [store, stores, jalousie, jalousies]
@@ -32,11 +37,72 @@ open_closed:
 locked_unlocked:
   locked: [verrouillé, verrouillée, verrouillés, verrouillées, fermé à clé, fermée à clé]
   unlocked: [déverrouillé, déverrouillée, déverrouillés, déverrouillées]
-hvac_modes:
+color_temperatures:
+  "2700": [blanc chaud, chaud, chaude]
+  "3000": [blanc doux, doux, douce]
+  "4000": [blanc neutre, blanc naturel, neutre]
+  "5000": [blanc froid, froid, froide]
+  "6500": [lumière du jour, jour]
+forecast_days:
+  today: [aujourd'hui]
+  tomorrow: [demain]
+  day_after_tomorrow: [après demain]
+  monday: [lundi]
+  tuesday: [mardi]
+  wednesday: [mercredi]
+  thursday: [jeudi]
+  friday: [vendredi]
+  saturday: [samedi]
+  sunday: [dimanche]
+  weekend: [ce week end, le week end, week end, ce weekend, le weekend, weekend]
+weather_kinds:
+  rain: [pluie, pleuvoir, pleut, pluvieux, parapluie]
+  snow: [neige, neiger, neigeux]
+fan_modes:
+  auto: [auto, automatique]
+  "on": [marche, allumé, toujours allumé]
   "off": [arrêt, éteint]
-  heat: [chauffage, chauffer]
-  cool: [climatisation, refroidir, clim]
-  heat_cool: [chauffage et climatisation]
+  low: [faible, bas, lent]
+  medium: [moyen, moyenne]
+  high: [fort, élevé, rapide]
+  circulate: [circulation, brassage]
+  # Both at once, where a thermostat's modes are ("on_low", "auto_high").
+  auto_low: [auto faible, automatique faible]
+  auto_medium: [auto moyen, automatique moyen]
+  auto_high: [auto fort, automatique fort]
+  on_low: [marche faible, allumé faible]
+  on_medium: [marche moyen, allumé moyen]
+  on_high: [marche fort, allumé fort]
+binary_states:
+  # What a binary sensor is asked to be ("est-ce que la porte d'entrée est
+  # ouverte"): the words for each of its device classes' two states (Sensors
+  # library group). Not verrouillé or déverrouillé: "est-ce que la porte
+  # d'entrée est verrouillée" is the lock's (Covers and locks), which asks a
+  # binary sensor of the lock class too.
+  "on": [allumé, allumée, activé, activée]
+  "off": [éteint, éteinte, désactivé, désactivée]
+  open: [ouvert, ouverte, ouverts, ouvertes]
+  closed: [fermé, fermée, fermés, fermées]
+  wet: [mouillé, mouillée, humide, fuit, fuite]
+  dry: [sec, sèche]
+  occupied: [occupé, occupée]
+  clear: [libre, vide]
+  home: [à la maison, présent, présente]
+  away: [absent, absente, parti, partie]
+  connected: [connecté, connectée, en ligne]
+  disconnected: [déconnecté, déconnectée, hors ligne]
+  running: [en marche, en fonctionnement]
+  charging: [en charge, en train de charger]
+  plugged in: [branché, branchée]
+  unplugged: [débranché, débranchée]
+  low: [faible, bas, basse]
+  cold: [froid, froide]
+  hot: [chaud, chaude]
+hvac_modes:
+  "off": [arrêt, éteint, éteins]
+  heat: [chauffage, chauffer, chaud]
+  cool: [climatisation, refroidir, clim, froid]
+  heat_cool: [chauffage et climatisation, chaud et froid]
   auto: [automatique, auto]
   dry: [déshumidification, déshumidifier]
   fan_only: [ventilation, ventilateur seul]

@@ -1,14 +1,45 @@
-# Weather (Dutch), as the English library's weather.yaml.
+# Weather (Dutch), as the English library's weather.yaml: from the home's
+# weather entity (Settings), or one a command is given (its implied target):
+# now, on a day, this week, and whether it will rain or snow. The forecasts
+# are its daily ones (weather.get_forecasts), so it must have them. A day is
+# said from the forecast_days list: vandaag, morgen, overmorgen, a day of the
+# week (the next one), dit weekend; what falls from weather_kinds: regen (or
+# a paraplu), sneeuw. Days are said by Dutch names, not strftime's.
 title: Weather
 icon: mdi:weather-partly-cloudy
+
+# Commands shown together in Add a command: each one's topic.
+topics:
+  weather: {title: Weather, icon: mdi:weather-partly-cloudy}
+
+# What the commands share (merged into them with <<, or as a whole).
+shared:
+  # The daily forecast, as the response's result.days.
+  forecast: &forecast
+    - action: weather.get_forecasts
+      target:
+        entity_id: "{{ slots.entity }}"
+      data:
+        type: daily
+      response_variable: found
+    - variables:
+        reply:
+          days: "{{ found[slots.entity[0]].forecast }}"
+    - stop: Read the forecast
+      response_variable: reply
+  needs: &needs
+    - Set the home's weather entity in Settings, or give it one of its
+      own (its implied target). It needs daily forecasts.
 
 commands:
   weather:
     title: What's the weather
+    topic: weather
     icon: mdi:weather-partly-cloudy
-    description: het weer weten
-    examples: ["hoe is het weer [vandaag]", "gaat het [vandaag] regenen", "wat voor weer wordt het"]
-    require: [[weer, regenen, weersvoorspelling, voorspelling]]
+    description: weten hoe het weer nu is
+    examples: ["hoe is het weer [vandaag|nu|buiten]", "wat is het weer [vandaag|nu|buiten]", "wat voor weer is het [vandaag|nu|buiten]"]
+    require: [[weer]]
+    optional: [[nu, buiten, op dit moment]]
     home: weather
     response: >-
       {%- set weer = {'clear-night': 'helder', 'cloudy': 'bewolkt', 'exceptional': 'uitzonderlijk',
@@ -19,6 +50,165 @@ commands:
       {%- set state = states(slots.entity[0]) -%}
       Het is {{ weer.get(state, state) }} bij
       {{ state_attr(slots.entity[0], 'temperature') | round }} graden.
-    needs:
-      - Set the home's weather entity on the Settings page, or give it one of its
-        own (its implied target).
+    needs: *needs
+
+  weather_day:
+    title: The weather on a day
+    topic: weather
+    icon: mdi:weather-cloudy-clock
+    description: de weersvoorspelling voor een dag weten
+    # "Hoe wordt het weer morgen", "de weersvoorspelling voor zaterdag", "wat
+    # voor weer wordt het dit weekend" (both days). No day said, as its
+    # examples: today's ("hoe wordt het weer").
+    examples: ["(hoe|wat) wordt het weer", "wat voor weer wordt het", "wat is de [weers]voorspelling",
+               "wat zegt de weersvoorspelling"]
+    require: [[weer, weersvoorspelling, voorspelling]]
+    optional: [[wat, wat voor, hoe], [wordt, worden, is, zegt, gaat, voor, op]]
+    lists:
+      day: {list: forecast_days}
+    home: weather
+    action: *forecast
+    response: >-
+      {%- set looks = {'clear-night': 'helder', 'cloudy': 'bewolkt', 'exceptional': 'uitzonderlijk', 'fog': 'mistig',
+        'hail': 'stormachtig', 'lightning': 'onweerachtig', 'lightning-rainy': 'onweerachtig', 'partlycloudy': 'half bewolkt',
+        'pouring': 'erg regenachtig', 'rainy': 'regenachtig', 'snowy': 'sneeuwachtig', 'snowy-rainy': 'regenachtig met sneeuw',
+        'sunny': 'zonnig', 'windy': 'winderig', 'windy-variant': 'winderig'} -%}
+      {%- set day = slots.day | default('today') -%}
+      {%- set weekdays = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'] -%}
+      {%- set dagen = ['maandag', 'dinsdag', 'woensdag', 'donderdag', 'vrijdag', 'zaterdag', 'zondag'] -%}
+      {%- set today = now().date() -%}
+      {%- if day == 'weekend' -%}
+        {%- set offsets = [0] if today.weekday() == 6 else [(5 - today.weekday()) % 7, (6 - today.weekday()) % 7] -%}
+      {%- else -%}
+        {%- set offsets = [0 if day == 'today' else 1 if day == 'tomorrow' else 2 if day == 'day_after_tomorrow'
+          else (weekdays.index(day) - today.weekday()) % 7] -%}
+      {%- endif -%}
+      {%- set ns = namespace(out=[]) -%}
+      {%- for offset in offsets -%}
+        {%- set date = today + timedelta(days=offset) -%}
+        {%- set when = 'vandaag' if offset == 0 else 'morgen' if offset == 1 else dagen[date.weekday()] -%}
+        {%- set on = namespace(f=none) -%}
+        {%- for g in result.days or [] if on.f is none and (as_datetime(g.datetime) | as_local).date() == date -%}
+          {%- set on.f = g -%}
+        {%- endfor -%}
+        {%- if on.f is not none -%}
+          {%- set f = on.f -%}
+          {%- set rain = (f.precipitation_probability | default(0) or 0) | round -%}
+          {%- set ns.out = ns.out + [(when[:1] | upper) ~ when[1:] ~ ' wordt het ' ~ looks.get(f.condition, f.condition)
+            ~ ', met een maximum van ' ~ (f.temperature | round) ~ (' en een minimum van ' ~ (f.templow | round) if f.templow is defined else '')
+            ~ ' graden' ~ (', en ' ~ rain ~ ' procent kans op regen' if rain > 0 else '') ~ '.'] -%}
+        {%- else -%}
+          {%- set ns.out = ns.out + ['Er is nog geen weersvoorspelling voor ' ~ when ~ '.'] -%}
+        {%- endif -%}
+      {%- endfor -%}
+      {{ ns.out | join(' ') }}
+    needs: *needs
+
+  weather_week:
+    title: The weather this week
+    topic: weather
+    icon: mdi:calendar-week
+    description: de weersvoorspelling voor de week weten
+    examples: ["wat is de [weers]voorspelling voor [deze|de] week", "hoe wordt het weer [deze|de komende] week",
+               "hoe wordt het weer de komende dagen"]
+    require: [[weer, weersvoorspelling, voorspelling], [week, komende dagen, volgende dagen]]
+    optional: [[wat, hoe], [is, wordt, worden, gaat, voor, deze, komende]]
+    home: weather
+    action: *forecast
+    response: >-
+      {%- set looks = {'clear-night': 'helder', 'cloudy': 'bewolkt', 'exceptional': 'uitzonderlijk', 'fog': 'mistig',
+        'hail': 'stormachtig', 'lightning': 'onweerachtig', 'lightning-rainy': 'onweerachtig', 'partlycloudy': 'half bewolkt',
+        'pouring': 'erg regenachtig', 'rainy': 'regenachtig', 'snowy': 'sneeuwachtig', 'snowy-rainy': 'regenachtig met sneeuw',
+        'sunny': 'zonnig', 'windy': 'winderig', 'windy-variant': 'winderig'} -%}
+      {%- set dagen = ['maandag', 'dinsdag', 'woensdag', 'donderdag', 'vrijdag', 'zaterdag', 'zondag'] -%}
+      {%- set wet = ['rainy', 'pouring', 'lightning-rainy', 'snowy-rainy', 'hail'] -%}
+      {%- set days = (result.days or [])[:7] -%}
+      {%- if not days -%}
+      Er is geen weersvoorspelling.
+      {%- else -%}
+      {%- set highs = days | map(attribute='temperature') | list -%}
+      {%- set kinds = days | map(attribute='condition') | map('replace', 'pouring', 'rainy') | list -%}
+      {%- set ns = namespace(top='', count=0, rainy=[]) -%}
+      {%- for c in kinds | unique -%}
+        {%- set n = kinds | select('eq', c) | list | count -%}
+        {%- if n > ns.count -%}{%- set ns.top = c -%}{%- set ns.count = n -%}{%- endif -%}
+      {%- endfor -%}
+      {%- for f in days -%}
+        {%- if f.condition in wet or (f.precipitation_probability | default(0) or 0) >= 50 -%}
+          {%- set ns.rainy = ns.rainy + [dagen[(as_datetime(f.datetime) | as_local).weekday()]] -%}
+        {%- endif -%}
+      {%- endfor -%}
+      {{ ('Overwegend ' ~ looks.get(ns.top, ns.top)) if ns.count * 2 > days | count else 'Wisselvallig' }}, met maxima van
+      {{ highs | min | round }} tot {{ highs | max | round }} graden.
+      {% if ns.rainy %}Regen is waarschijnlijk op {{ (ns.rainy[:-1] | join(', ') ~ ' en ' ~ ns.rainy[-1]) if ns.rainy | count > 1 else ns.rainy[0] }}.
+      {%- else %}Er wordt geen regen verwacht.{%- endif -%}
+      {%- endif -%}
+    needs: *needs
+
+  will_it_rain:
+    title: Will it rain
+    topic: weather
+    icon: mdi:weather-rainy
+    description: weten of het gaat regenen of sneeuwen
+    # "Gaat het morgen regenen", "gaat het zaterdag sneeuwen", "heb ik een
+    # paraplu nodig", "gaat het dit weekend regenen", "is er kans op regen".
+    # Nothing said: today.
+    examples: ["gaat het regenen", "heb ik [vandaag] een paraplu nodig"]
+    require: [[gaat het, gaat er, zal het, zal er, wordt er, komt er, is er, heb ik, kans op]]
+    optional: [[een, het, er], [nodig, verwacht, vallen, worden]]
+    lists:
+      what: {list: weather_kinds}
+      day: {list: forecast_days}
+    combinations: [[what], [what, day]]
+    home: weather
+    action: *forecast
+    response: >-
+      {%- set looks = {'clear-night': 'helder', 'cloudy': 'bewolkt', 'exceptional': 'uitzonderlijk', 'fog': 'mistig',
+        'hail': 'stormachtig', 'lightning': 'onweerachtig', 'lightning-rainy': 'onweerachtig', 'partlycloudy': 'half bewolkt',
+        'pouring': 'erg regenachtig', 'rainy': 'regenachtig', 'snowy': 'sneeuwachtig', 'snowy-rainy': 'regenachtig met sneeuw',
+        'sunny': 'zonnig', 'windy': 'winderig', 'windy-variant': 'winderig'} -%}
+      {%- set what = slots.what | default('rain') -%}
+      {%- set falls = ['rainy', 'pouring', 'lightning-rainy', 'snowy-rainy', 'hail'] if what == 'rain' else ['snowy', 'snowy-rainy'] -%}
+      {%- set day = slots.day | default('today') -%}
+      {%- set weekdays = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'] -%}
+      {%- set dagen = ['maandag', 'dinsdag', 'woensdag', 'donderdag', 'vrijdag', 'zaterdag', 'zondag'] -%}
+      {%- set today = now().date() -%}
+      {%- if day == 'weekend' -%}
+        {%- set offsets = [0] if today.weekday() == 6 else [(5 - today.weekday()) % 7, (6 - today.weekday()) % 7] -%}
+      {%- else -%}
+        {%- set offsets = [0 if day == 'today' else 1 if day == 'tomorrow' else 2 if day == 'day_after_tomorrow'
+          else (weekdays.index(day) - today.weekday()) % 7] -%}
+      {%- endif -%}
+      {%- set ns = namespace(likely=[], chance=0, other='', known=false) -%}
+      {%- for offset in offsets -%}
+        {%- set date = today + timedelta(days=offset) -%}
+        {%- set when = 'vandaag' if offset == 0 else 'morgen' if offset == 1 else dagen[date.weekday()] -%}
+        {%- set on = namespace(f=none) -%}
+        {%- for g in result.days or [] if on.f is none and (as_datetime(g.datetime) | as_local).date() == date -%}
+          {%- set on.f = g -%}
+        {%- endfor -%}
+        {%- if on.f is not none -%}
+          {%- set f = on.f -%}
+          {%- set rain = (f.precipitation_probability | default(0) or 0) | round -%}
+          {%- if f.condition in falls or (what == 'rain' and rain >= 50) -%}
+            {%- set ns.likely = ns.likely + [when if offset < 2 else 'op ' ~ when] -%}
+            {%- set ns.chance = rain if what == 'rain' and rain > ns.chance else ns.chance -%}
+          {%- elif not ns.known -%}
+            {%- set ns.other = (when[:1] | upper) ~ when[1:] ~ ' wordt het ' ~ looks.get(f.condition, f.condition)
+              ~ (', met ' ~ rain ~ ' procent kans op regen' if what == 'rain' and rain > 0 else '') -%}
+          {%- endif -%}
+          {%- set ns.known = true -%}
+        {%- endif -%}
+      {%- endfor -%}
+      {%- if ns.likely and ns.chance and ns.likely | count == 1 -%}
+      Ja, {{ ns.likely[0] }} is er {{ ns.chance }} procent kans op regen.
+      {%- elif ns.likely -%}
+      Ja, er valt waarschijnlijk {{ 'regen' if what == 'rain' else 'sneeuw' }} {{ ns.likely | join(' en ') }}.
+      {%- elif ns.known and day == 'weekend' -%}
+      Waarschijnlijk niet dit weekend.
+      {%- elif ns.known -%}
+      Waarschijnlijk niet. {{ ns.other }}.
+      {%- else -%}
+      Zo ver vooruit is er nog geen weersvoorspelling.
+      {%- endif -%}
+    needs: *needs

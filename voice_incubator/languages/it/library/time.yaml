@@ -1,18 +1,26 @@
-# Date and time (Italian), as the English library's time.yaml.
+# Date and time (Italian), as the English library's time.yaml: the time and
+# the date now. A time from now ("che ore saranno tra 45 minuti") is a
+# question: the clock skill's.
 title: Date and time
 icon: mdi:clock-outline
+
+# Commands shown together in Add a command: each one's topic.
+topics:
+  date_and_time: {title: Date and time, icon: mdi:clock-outline}
 
 commands:
   what_time:
     title: What time is it
+    topic: date_and_time
     icon: mdi:clock-outline
     description: sapere che ore sono
     examples: ["che ore sono", "che ora è", "mi dici che ore sono"]
     require: [[che ore, che ora]]
     optional: [[sono, è], [adesso]]
     # Other times: "a che ora chiude il negozio", "che ore sono a Tokyo", "che
-    # ore saranno tra 45 minuti" (that one is answered as a question).
-    exclude: [chiude, apre, dopo, prima, fino, sarà, saranno, tra, fra, minuti]
+    # ore saranno tra 45 minuti" (that one is answered as a question), "a che
+    # ora è la sveglia" (the alarms').
+    exclude: [chiude, apre, dopo, prima, fino, sarà, saranno, tra, fra, minuti, minuto, sveglia, sveglie]
     response: >-
       {%- set h, m = now().hour, now().minute -%}
       {%- if h == 12 and m == 0 -%}È mezzogiorno.
@@ -23,6 +31,7 @@ commands:
 
   what_date:
     title: What's the date
+    topic: date_and_time
     icon: mdi:calendar-today
     description: sapere la data
     examples: ["che giorno è oggi", "quanti ne abbiamo oggi", "qual è la data di oggi"]

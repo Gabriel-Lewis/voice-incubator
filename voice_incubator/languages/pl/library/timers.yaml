@@ -1,20 +1,32 @@
 # Timers (Polish), as the English library's timers.yaml: on the satellite
-# that set them, with the Voice Incubator integration in Home Assistant. A timer is
-# picked out by:
+# that set them. They need the Voice Incubator integration in Home
+# Assistant, which gives each satellite a voice_timer_list; the app starts,
+# matches and rings them. A timer is picked out by:
 #   timer_name  a running timer's name: "anuluj minutnik pizza"
 #   timer       free text, for naming a new timer, or matched loosely to the
 #               running ones: "minutnik o nazwie pizza", "minutnik pizza",
 #               "minutnik do pizzy"
 #   duration    "minutnik na 5 minut"
 # or it is the only one running. A timer is a "minutnik", or a "timer" (said
-# "tajmer"); an alarm a "budzik". Asked for without how long ("włącz
-# minutnik"), it asks: "włącz" would otherwise play music called "minutnik".
+# "tajmer"); an alarm a "budzik".
+#
+# Timers are the satellite's own, so they have no versions (variants) for a
+# device or a place named. Alarms and reminders with a time are events on the
+# Voice Incubator calendar in Home Assistant, which the app makes, and ring the
+# satellite that set them: when one is for is read from all that follows
+# "budzik" or "obudź mnie" (the language's calendar.py).
 title: Timers and alarms
 icon: mdi:timer-outline
+
+# Commands shown together in Add a command: each one's topic.
+topics:
+  timers: {title: Timers, icon: mdi:timer-outline}
+  alarms: {title: Alarms, icon: mdi:alarm}
 
 commands:
   start_timer:
     title: Start a timer
+    topic: timers
     icon: mdi:timer-plus-outline
     description: ustawić minutnik
     # "Ustaw minutnik na 5 minut", "minutnik na pół godziny", "nastaw minutnik
@@ -37,36 +49,65 @@ commands:
         - {multiple_of: 0.25, cost: 0}
         - {cost: 1.0}
     # Each said whole.
-    combinations: [[], [timer], [duration], [duration, timer]]
+    combinations: [[duration], [duration, timer]]
     timer: start
     verbosity: specific
 
   set_alarm:
     title: Set an alarm
+    topic: alarms
     icon: mdi:alarm
     description: ustawić budzik
-    # A timer that rings at a clock time: "ustaw budzik na siódmą", "obudź
-    # mnie o siódmej trzydzieści", "budzik na wpół do ósmej". Without "rano"
-    # or "wieczorem" it is the next time that comes round.
-    require: [[budzik, alarm, obudź mnie, obudź nas, obudź]]
-    optional: [[ustaw, nastaw, włącz, ustawić, nastawić], [na, o, na godzinę, o godzinie]]
-    wildcard: {slot: time, after: [na, o, na godzinę, o godzinie], to_end: true, max_words: 7}
-    exclude: [anuluj, usuń, wyłącz, zatrzymaj, wstrzymaj, ile]
-    # Without a time it asks for one ("ustaw budzik"): "włącz" would
-    # otherwise play music called "budzik".
-    combinations: [[], [time]]
+    # On the Voice Incubator calendar in Home Assistant: "ustaw budzik na
+    # siódmą", "obudź mnie jutro o szóstej", "budzik na wpół do ósmej jutro
+    # rano", "budzik w dni robocze na szóstą czterdzieści pięć", "budzik za 20
+    # minut". Without "rano" or "wieczorem" it is the next time that comes
+    # round; on another day, the morning.
+    require: [[budzik, budzika, alarm, obudź mnie, obudź nas, obudź]]
+    optional: [[ustaw, nastaw, włącz, ustawić, nastawić]]
+    wildcard: {slot: time, after: [budzik, budzika, alarm, obudź mnie, obudź nas, obudź], to_end: true, max_words: 9}
+    exclude: [jaki, jakie, jakiej, kiedy, który, którą, której, ile, czy, anuluj, usuń, skasuj, wyłącz, odwołaj, zatrzymaj,
+              wstrzymaj]
     timer: alarm
     verbosity: specific
     response:
       missing_time: Na którą godzinę ustawić budzik?
 
+  cancel_alarm:
+    title: Cancel an alarm
+    topic: alarms
+    icon: mdi:alarm-off
+    description: anulować budzik
+    # "Anuluj budzik", "usuń budzik na siódmą", "wyłącz budzik na jutro",
+    # "anuluj jutrzejszy budzik". Said over a ringing alarm without a time, it
+    # only stops it.
+    require: [[anuluj, anulować, usuń, usunąć, skasuj, wyłącz, wyłączyć, odwołaj], [budzik, budzika, budziki, alarm, alarmu]]
+    optional: [[mój, ten], [na, o]]
+    wildcard: {slot: time, before: [budzik, budzika], after: [na, o], max_words: 6}
+    combinations: [[], [time]]
+    timer: cancel_alarm
+    verbosity: specific
+
+  alarm_status:
+    title: Say the alarms
+    topic: alarms
+    icon: mdi:alarm-check
+    description: powiedzieć, jakie budziki są ustawione
+    examples: ["jakie mam budziki", "na którą mam budzik", "czy mam [ustawiony] budzik", "czy mam jakieś budziki",
+               "kiedy zadzwoni budzik"]
+    require: [[budzik, budziki, budzika, budzików, alarm, alarmy]]
+    optional: [[jakie, jaki, kiedy, którą, czy, ile], [mam, są, jest], [ustawiony, ustawione, ustawionych, jakieś], [dzwoni, zadzwoni]]
+    exclude: [anuluj, usuń, skasuj, wyłącz, odwołaj, ustaw, nastaw, obudź]
+    timer: alarm_status
+
   cancel_timer:
     title: Cancel a timer
+    topic: timers
     icon: mdi:timer-off-outline
     description: anulować minutnik
-    examples: ["(anuluj|wyłącz|zatrzymaj|usuń) minutnik", "(anuluj|wyłącz|zatrzymaj|usuń) budzik", "(anuluj|wyłącz|usuń) timer"]
+    examples: ["(anuluj|wyłącz|zatrzymaj|usuń) minutnik", "(anuluj|wyłącz|usuń) timer"]
     require: [[anuluj, anulować, wyłącz, wyłączyć, zatrzymaj, zatrzymać, usuń, usunąć, skasuj],
-              [minutnik, minutnika, timer, timera, tajmer, budzik, budzika, alarm, odliczanie]]
+              [minutnik, minutnika, timer, timera, tajmer, odliczanie]]
     optional: [[minut, minuty, minutę, sekund, sekundy, godzin, godziny, godzinę], [o nazwie, nazwany, na, dla, do]]
     # Not a new one: "ustaw minutnik na pizzę".
     exclude: [ustaw, nastaw, wszystkie, wszystkich]
@@ -81,6 +122,7 @@ commands:
 
   cancel_all_timers:
     title: Cancel every timer
+    topic: timers
     icon: mdi:timer-cancel-outline
     description: anulować wszystkie minutniki
     require: [[anuluj, anulować, wyłącz, zatrzymaj, usuń, skasuj], [wszystkie, wszystkich], [minutniki, minutników, timery, timerów, minutnik]]
@@ -93,9 +135,10 @@ commands:
 
   pause_timer:
     title: Pause a timer
+    topic: timers
     icon: mdi:timer-pause-outline
     description: wstrzymać minutnik
-    require: [[wstrzymaj, wstrzymać, zapauzuj, spauzuj, pauza], [minutnik, minutnika, timer, timera, odliczanie]]
+    require: [[wstrzymaj, wstrzymać, zapauzuj, spauzuj, pauza], [minutnik, minutnika, minutniki, timer, timera, odliczanie]]
     optional: [[minut, minuty, minutę, sekund, sekundy, godzin, godziny, godzinę], [o nazwie, nazwany, na, dla, do]]
     lists:
       timer_name: {list: running_timers}
@@ -108,9 +151,10 @@ commands:
 
   resume_timer:
     title: Resume a timer
+    topic: timers
     icon: mdi:timer-play-outline
     description: wznowić minutnik
-    require: [[wznów, wznowić, kontynuuj, odpauzuj, uruchom ponownie], [minutnik, minutnika, timer, timera, odliczanie]]
+    require: [[wznów, wznowić, kontynuuj, odpauzuj, uruchom ponownie], [minutnik, minutnika, minutniki, timer, timera, odliczanie]]
     optional: [[minut, minuty, minutę, sekund, sekundy, godzin, godziny, godzinę], [o nazwie, nazwany, na, dla, do]]
     lists:
       timer_name: {list: running_timers}
@@ -123,18 +167,18 @@ commands:
 
   timer_status:
     title: How long is left
+    topic: timers
     icon: mdi:timer-sand
     description: sprawdzić, ile czasu zostało
     examples: ["ile [jeszcze] [czasu] zostało", "ile [czasu] zostało na minutniku", "ile zostało do końca"]
     require: [[ile], [zostało, pozostało, brakuje]]
-    optional: [[czasu, jeszcze], [na, do, w], [minutniku, minutnika, minutnik, timerze, timera, budziku, budzika, końca],
-               [o nazwie, nazwany]]
+    optional: [[czasu, jeszcze], [na, do, w], [minutniku, minutnika, minutnik, timerze, timera, końca], [o nazwie, nazwany]]
     # A date: "ile dni zostało do świąt"; a time of day: "ile zostało do
     # siedemnastej" (a question).
     exclude: [dni, dzień, tygodni, tygodnie, tygodnia, miesięcy, miesiące, lat, roku, pierwszej, drugiej, trzeciej,
               czwartej, piątej, szóstej, siódmej, ósmej, dziewiątej, dziesiątej, jedenastej, dwunastej, trzynastej,
               czternastej, piętnastej, szesnastej, siedemnastej, osiemnastej, dziewiętnastej, dwudziestej, północy,
-              południa, wpół]
+              południa, wpół, budzik, budzika, budziku]
     lists:
       timer_name: {list: running_timers}
     wildcard: {slot: timer, after: [minutniku, minutnika, minutnik, o nazwie, nazwany]}
@@ -145,6 +189,7 @@ commands:
 
   add_time:
     title: Add time to a timer
+    topic: timers
     icon: mdi:clock-plus-outline
     description: dodać czas do minutnika
     # "Dodaj 5 minut do minutnika pizza", "przedłuż minutnik o 2 minuty".
@@ -162,6 +207,7 @@ commands:
 
   subtract_time:
     title: Take time off a timer
+    topic: timers
     icon: mdi:clock-minus-outline
     description: odjąć czas z minutnika
     # "Odejmij 2 minuty od minutnika", "skróć minutnik pizza o 2 minuty".

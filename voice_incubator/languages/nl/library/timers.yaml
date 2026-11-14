@@ -6,12 +6,23 @@
 #               running ones: "een timer genaamd pasta"
 #   duration    "de timer van 5 minuten"
 # or it is the only one running.
+#
+# Timers are the satellite's own, so they have no versions (variants) for a
+# device or a place named. Alarms and reminders with a time are events on the
+# Voice Incubator calendar in Home Assistant, which the app makes, and ring the
+# satellite that set them (the pack's calendar.py reads when they are).
 title: Timers and alarms
 icon: mdi:timer-outline
+
+# Commands shown together in Add a command: each one's topic.
+topics:
+  timers: {title: Timers, icon: mdi:timer-outline}
+  alarms: {title: Alarms, icon: mdi:alarm}
 
 commands:
   start_timer:
     title: Start a timer
+    topic: timers
     icon: mdi:timer-plus-outline
     description: een timer zetten
     # "Zet een timer van 5 minuten", "start een pizza timer voor 10 minuten".
@@ -27,21 +38,55 @@ commands:
 
   set_alarm:
     title: Set an alarm
+    topic: alarms
     icon: mdi:alarm
     description: een wekker zetten
-    # A timer that rings at a clock time: "zet een wekker om half zeven",
-    # "maak me wakker om 7 uur". Without 's ochtends or 's avonds it is the
-    # next time that comes round.
-    require: [[wekker, wek me, maak me wakker]]
-    optional: [[zet, stel, maak], [om, voor, op], [in]]
-    wildcard: {slot: time, after: [om, voor, op], to_end: true, max_words: 7}
+    # On the Voice Incubator calendar in Home Assistant: "zet een wekker om half
+    # acht", "maak me morgen om zes uur wakker", "wek me morgen om kwart over
+    # zes", "zet een wekker voor elke werkdag om kwart voor zeven", "zet een
+    # wekker over twintig minuten". Without 's ochtends or 's avonds it is
+    # the next time that comes round; on another day, the morning. "Wakker"
+    # after the time is left out of it. The time is all that follows: "over
+    # acht uur" is from now, "acht uur" a clock time, so "om", "voor", "op"
+    # and "over" stay in it.
+    require: [[wekker, wek me, maak me wakker, maak me]]
+    optional: [[zet, stel, maak, een, de]]
+    wildcard: {slot: time, after: [wekker, wek me, maak me wakker, maak me], to_end: true, max_words: 10}
+    exclude: [wat, wanneer, welke, hoe laat, annuleer, annuleren, verwijder, verwijderen, uit, uitzetten, stop]
     timer: alarm
     verbosity: specific
     response:
       missing_time: Voor hoe laat moet ik de wekker zetten?
 
+  cancel_alarm:
+    title: Cancel an alarm
+    topic: alarms
+    icon: mdi:alarm-off
+    description: een wekker annuleren
+    # "Annuleer mijn wekker", "verwijder de wekker van zeven uur", "zet de
+    # wekker voor morgen uit". Said over a ringing alarm without a time, it
+    # only stops it.
+    require: [[annuleer, annuleren, verwijder, verwijderen, zet ... uit, schakel ... uit, uitzetten, stop], [wekker, wekkers]]
+    optional: [[mijn, de], [voor, van, om]]
+    wildcard: {slot: time, before: [wekker], after: [voor, van, om], max_words: 6}
+    combinations: [[], [time]]
+    timer: cancel_alarm
+    verbosity: specific
+
+  alarm_status:
+    title: Say the alarms
+    topic: alarms
+    icon: mdi:alarm-check
+    description: weten welke wekkers er gezet zijn
+    examples: ["welke wekkers heb ik", "hoe laat gaat mijn wekker", "wanneer gaat mijn wekker", "heb ik een wekker [gezet]"]
+    require: [[wekker, wekkers]]
+    optional: [[wat, wanneer, welke, hoe laat], [is, zijn, gaat], [heb ik, staan er, zijn er], [mijn, een], [gezet, ingesteld]]
+    exclude: [annuleer, annuleren, verwijder, verwijderen, uit, uitzetten, stop, zet, stel, om, voor, over]
+    timer: alarm_status
+
   cancel_timer:
     title: Cancel a timer
+    topic: timers
     icon: mdi:timer-off-outline
     description: een timer annuleren
     require: [[annuleer, annuleren, stop, stoppen, verwijder, verwijderen, zet ... uit], [timer]]
@@ -57,6 +102,7 @@ commands:
 
   cancel_all_timers:
     title: Cancel every timer
+    topic: timers
     icon: mdi:timer-cancel-outline
     description: alle timers annuleren
     require: [[annuleer, annuleren, stop, stoppen, verwijder, verwijderen], [alle], [timers, timer]]
@@ -69,6 +115,7 @@ commands:
 
   pause_timer:
     title: Pause a timer
+    topic: timers
     icon: mdi:timer-pause-outline
     description: een timer pauzeren
     require: [[pauzeer, pauzeren, pauze, zet ... op pauze], [timer]]
@@ -84,6 +131,7 @@ commands:
 
   resume_timer:
     title: Resume a timer
+    topic: timers
     icon: mdi:timer-play-outline
     description: een timer hervatten
     require: [[hervat, hervatten, ga verder met, laat ... verder lopen], [timer]]
@@ -99,6 +147,7 @@ commands:
 
   timer_status:
     title: How long is left
+    topic: timers
     icon: mdi:timer-sand
     description: weten hoe lang een timer nog loopt
     examples: ["hoeveel tijd is er nog over", "hoe lang loopt de timer nog"]
@@ -116,6 +165,7 @@ commands:
 
   add_time:
     title: Add time to a timer
+    topic: timers
     icon: mdi:clock-plus-outline
     description: tijd aan een timer toevoegen
     # "Voeg 5 minuten toe aan de pizza timer", "verleng de timer met 5 minuten".
@@ -133,6 +183,7 @@ commands:
 
   subtract_time:
     title: Take time off a timer
+    topic: timers
     icon: mdi:clock-minus-outline
     description: tijd van een timer afhalen
     # "Haal 2 minuten van de timer af", "verkort de pizza timer met 2 minuten".

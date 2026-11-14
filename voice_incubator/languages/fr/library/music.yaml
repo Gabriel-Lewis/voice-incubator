@@ -3,12 +3,25 @@
 # player, else its area's; a player by name; the players in an area or on a
 # floor).
 #
+# Pausing, skipping, the volume and muting are any media player's: with
+# nothing named, whatever plays in the satellite's area (its own music first),
+# a TV among them. "La musique" (kind: music) is Music Assistant's players
+# only, "la télé" (kind: tv) the TVs (their device class) -- "mets la télé en
+# pause", "baisse le son de la musique dans la cuisine".
+#
 # "Joue …" searches Music Assistant for what was heard (free text to the end
 # of the sentence, spelled from the transducer's transcript) and plays the
 # closest match; "l'album …", "des chansons de …", "la playlist …", "… par
 # …" narrow it (the language's reading).
 title: Music
 icon: mdi:music
+
+# Commands shown together in Add a command: each one's topic.
+topics:
+  play: {title: Play music, icon: mdi:music}
+  playback: {title: Pause and skip, icon: mdi:pause}
+  volume: {title: Volume, icon: mdi:volume-high}
+  shuffle_and_repeat: {title: Shuffle and repeat, icon: mdi:shuffle-variant}
 
 # What the versions add to a command (merged into them with <<).
 shared:
@@ -17,8 +30,8 @@ shared:
       entity: {count: 1, domains: [media_player]}
     combinations: [[entity]]
     needs:
-      - Add names for the players it may act on (Names page). A player must be
-        a Music Assistant player.
+      - Add names for the players it may act on (Names page). Any media player
+        can be paused, skipped or turned up; music plays on Music Assistant's.
   place: &place
     names:
       area: {count: 1}
@@ -26,11 +39,13 @@ shared:
     combinations: [[area], [floor]]
     needs:
       - Add names for the areas and floors it may act in (Names page). It acts
-        on the Music Assistant players there.
+        on the Music Assistant players added there on the Names page (and, to
+        pause, skip or turn up, the other media players added there).
 
 commands:
   play_music:
     title: Play music
+    topic: play
     icon: mdi:music
     description: écouter un artiste, un album, une chanson ou une playlist
     require: [[joue, jouer, fais jouer, écoute, écouter]]
@@ -53,8 +68,22 @@ commands:
         title: Play music in an area or floor
         combinations: [[area, query], [floor, query]]
 
+  play_my_playlist:
+    title: Play my playlist
+    topic: play
+    icon: mdi:playlist-star
+    description: écouter ma playlist
+    # The speaker's own (People page), on this satellite's player.
+    examples: ["(joue|mets) ma playlist", "(joue|mets) ma musique", "écoute ma playlist"]
+    music: play
+    mine: playlist
+    verbosity: specific
+    needs:
+      - Give each person their playlist (People page), as Music Assistant names it.
+
   add_to_queue:
     title: Add to the queue
+    topic: play
     icon: mdi:playlist-plus
     description: ajouter quelque chose à la file d'attente
     require: [[ajoute, rajoute, mets], [file d'attente]]
@@ -76,6 +105,7 @@ commands:
 
   play_similar:
     title: Play music like it
+    topic: play
     icon: mdi:radio
     description: écouter de la musique du même genre
     require: [[similaire, semblable, même genre, musique comme, chansons comme, quelque chose comme]]
@@ -100,47 +130,62 @@ commands:
 
   pause_music:
     title: Pause the music
+    topic: playback
     icon: mdi:pause
     description: mettre la musique en pause
     # "mais": mets as a speech-to-text often writes it.
     require: [[pause, mets ... en pause, mais ... en pause]]
-    optional: [[musique, lecture], [sur, dans, au]]
+    optional: [[lecture, chanson], [sur, dans, au]]
     exclude: [minuteur, minuterie, timer]
+    lists:
+      kind: {list: media_kinds}
     music: pause
     verbosity: beep
     variants:
       here:
         title: Pause the music in this satellite's area
-        examples: ["pause", "mets la musique en pause", "mets en pause"]
+        combinations: [[], [kind]]
+        examples: ["pause", "mets en pause"]
       device:
         <<: *player
         title: Pause the music on a different device
+        lists: null
+        optional: [[musique, lecture, chanson], [sur, dans, au]]
       place:
         <<: *place
         title: Pause the music in an area or floor
+        combinations: [[area], [floor], [area, kind], [floor, kind]]
 
   resume_music:
     title: Resume the music
+    topic: playback
     icon: mdi:play
     description: reprendre la musique
     require: [[reprends, reprendre, continue, relance]]
-    optional: [[musique, lecture], [sur, dans, au]]
+    optional: [[lecture], [sur, dans, au]]
     exclude: [minuteur, minuterie, timer]
+    lists:
+      kind: {list: media_kinds}
     music: resume
     verbosity: beep
     variants:
       here:
         title: Resume the music in this satellite's area
+        combinations: [[], [kind]]
         examples: ["reprends la musique", "reprends la lecture", "continue"]
       device:
         <<: *player
         title: Resume the music on a different device
+        lists: null
+        optional: [[musique, lecture], [sur, dans, au]]
       place:
         <<: *place
         title: Resume the music in an area or floor
+        combinations: [[area], [floor], [area, kind], [floor, kind]]
 
   stop_music:
     title: Stop the music
+    topic: playback
     icon: mdi:stop
     description: arrêter la musique
     require: [[arrête, arrêter, stop, stoppe, coupe], [musique, lecture, chanson]]
@@ -160,144 +205,196 @@ commands:
 
   next_track:
     title: Next track
+    topic: playback
     icon: mdi:skip-next
     description: passer à la chanson suivante
     require: [[suivant, suivante, passe, zappe]]
     optional: [[chanson, morceau, titre, piste], [joue, mets], [sur, dans, au]]
+    lists:
+      kind: {list: media_kinds}
     music: next
     verbosity: beep
     variants:
       here:
         title: Next track in this satellite's area
+        combinations: [[], [kind]]
         examples: ["chanson suivante", "suivant", "passe à la suivante"]
       device:
         <<: *player
         title: Next track on a different device
+        lists: null
       place:
         <<: *place
         title: Next track in an area or floor
+        combinations: [[area], [floor], [area, kind], [floor, kind]]
 
   previous_track:
     title: Previous track
+    topic: playback
     icon: mdi:skip-previous
     description: revenir à la chanson précédente
     require: [[précédent, précédente, en arrière]]
     optional: [[chanson, morceau, titre, piste], [joue, mets, reviens, retourne], [sur, dans, au]]
+    lists:
+      kind: {list: media_kinds}
     music: previous
     verbosity: beep
     variants:
       here:
         title: Previous track in this satellite's area
+        combinations: [[], [kind]]
         examples: ["chanson précédente", "précédent", "reviens en arrière"]
       device:
         <<: *player
         title: Previous track on a different device
+        lists: null
       place:
         <<: *place
         title: Previous track in an area or floor
+        combinations: [[area], [floor], [area, kind], [floor, kind]]
 
   volume_up:
     title: Turn it up
+    topic: volume
     icon: mdi:volume-plus
     description: monter le son
     require: [[plus fort, monte le son, monte le volume, augmente le son, augmente le volume]]
-    optional: [[un peu], [musique], [sur, dans, au]]
+    optional: [[un peu], [sur, dans, au]]
     exclude: [lumière, lumières, luminosité, chauffage, température]
+    lists:
+      kind: {list: media_kinds}
     music: volume_up
     verbosity: beep
     variants:
       here:
         title: Turn it up in this satellite's area
+        combinations: [[], [kind]]
         examples: [plus fort, monte le son, augmente le volume]
       device:
         <<: *player
         title: Turn it up on a different device
+        lists: null
+        optional: [[un peu], [musique], [sur, dans, au]]
       place:
         <<: *place
         title: Turn it up in an area or floor
+        combinations: [[area], [floor], [area, kind], [floor, kind]]
 
   volume_down:
     title: Turn it down
+    topic: volume
     icon: mdi:volume-minus
     description: baisser le son
     require: [[moins fort, baisse le son, baisse le volume, diminue le son, diminue le volume]]
-    optional: [[un peu], [musique], [sur, dans, au]]
+    optional: [[un peu], [sur, dans, au]]
     exclude: [lumière, lumières, luminosité, chauffage, température]
+    lists:
+      kind: {list: media_kinds}
     music: volume_down
     verbosity: beep
     variants:
       here:
         title: Turn it down in this satellite's area
+        combinations: [[], [kind]]
         examples: [moins fort, baisse le son, baisse le volume]
       device:
         <<: *player
         title: Turn it down on a different device
+        lists: null
+        optional: [[un peu], [musique], [sur, dans, au]]
       place:
         <<: *place
         title: Turn it down in an area or floor
+        combinations: [[area], [floor], [area, kind], [floor, kind]]
 
   set_volume:
     title: Set the volume
+    topic: volume
     icon: mdi:volume-equal
     description: régler le volume
-    require: [[volume]]
+    # Also turned up or down to a number: "monte la télé à 50", "baisse le son
+    # à 20 pour cent"; never the lights', the heat's or the covers', or in
+    # some minutes.
+    require: [[volume, son, monte, baisse, augmente, diminue]]
     optional: [[mets, mais, règle, change], [à, sur], [pour cent], [dans, au]]
+    exclude: [lumière, lumières, luminosité, lampe, lampes, chauffage, température, thermostat, degrés, degré,
+              climatisation, clim, minute, minutes, heure, heures, seconde, secondes, volet, volets, store, stores,
+              rideau, rideaux, fenêtre, fenêtres]
     number: percentage
+    lists:
+      kind: {list: media_kinds}
     music: volume_set
     verbosity: beep
     variants:
       here:
         title: Set the volume in this satellite's area
+        combinations: [[percentage], [kind, percentage]]
       device:
         <<: *player
         title: Set the volume on a different device
+        lists: null
         combinations: [[entity, percentage]]
       place:
         <<: *place
         title: Set the volume in an area or floor
-        combinations: [[area, percentage], [floor, percentage]]
+        combinations: [[area, percentage], [floor, percentage], [area, kind, percentage], [floor, kind, percentage]]
 
   mute_music:
     title: Mute
+    topic: volume
     icon: mdi:volume-off
     description: couper le son
     require: [[coupe le son, muet, sourdine]]
     optional: [[mets, mode, en], [sur, dans, au]]
     exclude: [enlève, retire, désactive]
+    lists:
+      kind: {list: media_kinds}
     music: mute
     verbosity: beep
     variants:
       here:
         title: Mute this satellite
+        combinations: [[], [kind]]
         examples: ["coupe le son", "mets en sourdine"]
       device:
         <<: *player
         title: Mute a different device
+        lists: null
+        optional: [[mets, mode, en], [musique], [sur, dans, au]]
       place:
         <<: *place
         title: Mute an area or floor
+        combinations: [[area], [floor], [area, kind], [floor, kind]]
 
   unmute_music:
     title: Unmute
+    topic: volume
     icon: mdi:volume-high
     description: remettre le son
     require: [[remets le son, rétablis le son, réactive le son, enlève la sourdine, retire la sourdine]]
     optional: [[sur, dans, au]]
+    lists:
+      kind: {list: media_kinds}
     music: unmute
     verbosity: beep
     variants:
       here:
         title: Unmute this satellite
+        combinations: [[], [kind]]
         examples: ["remets le son", "enlève la sourdine"]
       device:
         <<: *player
         title: Unmute a different device
+        lists: null
+        optional: [[musique], [sur, dans, au]]
       place:
         <<: *place
         title: Unmute an area or floor
+        combinations: [[area], [floor], [area, kind], [floor, kind]]
 
   shuffle_on:
     title: Shuffle
+    topic: shuffle_and_repeat
     icon: mdi:shuffle-variant
     description: écouter la musique en aléatoire
     require: [[aléatoire, mélange, mélanger]]
@@ -318,6 +415,7 @@ commands:
 
   shuffle_off:
     title: Stop shuffling
+    topic: shuffle_and_repeat
     icon: mdi:shuffle-disabled
     description: arrêter la lecture aléatoire
     require: [[aléatoire, mélange, mélanger], [désactive, arrête, plus, pas]]
@@ -337,6 +435,7 @@ commands:
 
   repeat_one:
     title: Repeat this song
+    topic: shuffle_and_repeat
     icon: mdi:repeat-once
     description: répéter cette chanson
     require: [[répète, répéter, rejoue, remets], [cette chanson, ce morceau, ce titre]]
@@ -356,6 +455,7 @@ commands:
 
   repeat_all:
     title: Repeat
+    topic: shuffle_and_repeat
     icon: mdi:repeat
     description: répéter la musique
     require: [[répète, répéter, répétition, en boucle]]
@@ -376,6 +476,7 @@ commands:
 
   repeat_off:
     title: Stop repeating
+    topic: shuffle_and_repeat
     icon: mdi:repeat-off
     description: arrêter de répéter
     require: [[répétition, répète, répéter, en boucle], [désactive, arrête, plus, pas]]
@@ -397,6 +498,7 @@ commands:
   # playing anywhere) to the device, area or floor named, queue and all.
   move_music:
     title: Move the music
+    topic: play
     icon: mdi:cast-audio
     description: déplacer la musique dans une autre pièce ou sur une autre enceinte
     require: [[déplace, transfère, envoie, passe], [musique, chanson, lecture]]
@@ -415,6 +517,7 @@ commands:
 
   whats_playing:
     title: What's playing
+    topic: play
     icon: mdi:playlist-music
     description: savoir ce qui joue
     require: [[qu'est ce qui joue, qu'est ce qu'on écoute, quelle chanson, quel morceau, quel titre, qui chante, ça joue quoi]]

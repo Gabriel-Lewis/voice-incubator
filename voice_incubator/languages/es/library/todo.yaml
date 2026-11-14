@@ -1,10 +1,19 @@
-# Lists (Spanish), as the English library's todo.yaml.
+# Lists (Spanish), as the English library's todo.yaml: the shopping list
+# ("la lista de la compra") and the to-do list ("la lista de tareas"):
+# adding to them, checking off ("tacha", "marca"), taking off ("quita",
+# "borra"), and what's on them.
 title: Lists
 icon: mdi:format-list-checks
+
+# Commands shown together in Add a command: each one's topic.
+topics:
+  shopping_list: {title: Shopping list, icon: mdi:cart-outline}
+  todo_list: {title: To-do list, icon: mdi:format-list-checks}
 
 commands:
   shopping_list_add:
     title: Add to the shopping list
+    topic: shopping_list
     icon: mdi:cart-plus
     description: añadir algo a la lista de la compra
     require: [[añade, agrega, pon, apunta, mete], [lista de la compra, lista de compras, lista]]
@@ -17,8 +26,8 @@ commands:
       bounded: true
       max_words: 8
     home: shopping_list
-    # Each item said ("oranges and bananas": two), unless the list has one
-    # called that whole ("mac and cheese"); one the list has already isn't
+    # Each item said ("naranjas y plátanos": two), unless the list has one
+    # called that whole ("pan y aceite"); one the list has already isn't
     # added again (already_on_list).
     adds_to_list: {slot: item, list: entity, each: true}
     action:
@@ -45,39 +54,138 @@ commands:
       done:
         brief: Añadido a la lista de la compra.
         specific: "He añadido {{ slots.item }} a la lista de la compra."
+        verbose: >-
+          {%- if added -%}
+          He añadido {{ added }} a la lista de la compra{{ ' y he vuelto a poner ' ~ put_back if put_back }}.
+          {%- else -%}
+          He vuelto a poner {{ put_back }} en la lista de la compra.
+          {%- endif -%}
 
   shopping_list_remove:
     title: Take off the shopping list
+    topic: shopping_list
     icon: mdi:cart-minus
     description: quitar algo de la lista de la compra
-    require: [[quita, borra, elimina, tacha, saca], [lista de la compra, lista de compras, lista]]
+    # Gone from the list; checking it off (done, and kept) is Check off the
+    # shopping list. The items said are ones on the list: "prueba tres" is
+    # "prueba 3"; "manzanas y plátanos" two of them (items), unless one is
+    # called that.
+    require: [[quita, borra, elimina, saca], [lista de la compra, lista de compras, lista]]
     optional: [[de, del]]
     exclude: [tareas, pendientes]
     wildcard:
       slot: item
-      after: [quita, borra, elimina, tacha, saca]
+      after: [quita, borra, elimina, saca]
       before: [de, del]
       bounded: true
-      max_words: 5
+      max_words: 8
+    on_list: {item: entity}
     home: shopping_list
     action:
       action: todo.remove_item
       target:
         entity_id: "{{ slots.entity }}"
       data:
-        item: "{{ slots.item }}"
+        item: "{{ items }}"
     verbosity: specific
     response:
       done:
-        brief: Quitado de la lista de la compra.
+        brief: "{{ 'Quitado de la lista de la compra.' if items | count < 2 else 'Quitados de la lista de la compra.' }}"
         specific: "He quitado {{ slots.item }} de la lista de la compra."
+    needs:
+      - Set the home's shopping list in Settings, or give it one of its
+        own (its implied target).
+
+  shopping_list_check:
+    title: Check off the shopping list
+    topic: shopping_list
+    icon: mdi:cart-check
+    description: tachar algo de la lista de la compra como comprado
+    # Done, and kept on the list as such: "tacha la leche de la lista", "marca
+    # los huevos como comprados en la lista de la compra", "tacha manzanas y
+    # plátanos de la lista de la compra" (each of the items).
+    require: [[tacha, tachar, marca, marcar], [lista de la compra, lista de compras, lista]]
+    optional: [[de, del, en], [como comprado, como comprada, como comprados, como compradas, como hecho]]
+    exclude: [tareas, pendientes]
+    wildcard:
+      slot: item
+      after: [tacha, tachar, marca, marcar]
+      before: [de, del, en, como comprado, como comprada, como comprados, como compradas, como hecho]
+      bounded: true
+      max_words: 8
+    on_list: {item: entity}
+    home: shopping_list
+    action:
+      repeat:
+        for_each: "{{ items }}"
+        sequence:
+          - action: todo.update_item
+            target:
+              entity_id: "{{ slots.entity }}"
+            data:
+              item: "{{ repeat.item }}"
+              status: completed
+    verbosity: specific
+    response:
+      done:
+        brief: "{{ 'Tachado.' if items | count < 2 else 'Tachados.' }}"
+        specific: "He tachado {{ slots.item }} de la lista de la compra."
+    needs:
+      - Set the home's shopping list in Settings, or give it one of its
+        own (its implied target).
+
+  shopping_list_items:
+    title: What's on the shopping list
+    topic: shopping_list
+    icon: mdi:cart-outline
+    description: decir qué hay en la lista de la compra
+    # What is still to get; what was checked off is left out.
+    examples: ["qué hay en [la|mi|nuestra] lista de la compra", "qué (tengo|tenemos) que comprar",
+               "(lee|léeme|dime) la lista de la compra"]
+    require: [[qué hay, qué tengo, qué tenemos, lee, léeme, dime], [lista de la compra, lista de compras]]
+    optional: [[nuestra]]
+    exclude: [tareas, pendientes]
+    home: shopping_list
+    action:
+      - variables:
+          shopping: "{{ slots.entity[0] }}"
+      - action: todo.get_items
+        target:
+          entity_id: "{{ shopping }}"
+        data:
+          status: needs_action
+        response_variable: found
+      - variables:
+          reply:
+            listed: "{{ found[shopping]['items'] | map(attribute='summary') | list }}"
+      - stop: Read the list
+        response_variable: reply
+    response:
+      done: >-
+        {%- set listed = result.listed or [] -%}
+        {%- set count = listed | count -%}
+        {%- if count == 0 -%}
+        La lista de la compra está vacía.
+        {%- elif count == 1 -%}
+        En la lista de la compra hay {{ listed[0] }}.
+        {%- elif count > 8 -%}
+        Hay {{ count }} cosas en la lista de la compra: {{ listed[:5] | join(', ') }} y {{ count - 5 }} más.
+        {%- else -%}
+        En la lista de la compra: {{ listed[:-1] | join(', ') }} y {{ listed[-1] }}.
+        {%- endif -%}
+    needs:
+      - Set the home's shopping list in Settings, or give it one of its
+        own (its implied target).
 
   todo_add:
     title: Add to the to-do list
+    topic: todo_list
     icon: mdi:format-list-checks
     description: añadir algo a la lista de tareas
     require: [[añade, agrega, pon, apunta], [lista de tareas, lista de pendientes, tareas, pendientes]]
     optional: [[a, en]]
+    # Someone's own: Add to my to-do list.
+    exclude: [mi, mis]
     wildcard:
       slot: item
       after: [añade, agrega, pon, apunta]
@@ -112,6 +220,282 @@ commands:
       done:
         brief: Añadido a la lista de tareas.
         specific: "He añadido {{ slots.item }} a la lista de tareas."
+        verbose: "{{ ('He añadido ' ~ added ~ ' a') if added else ('He vuelto a poner ' ~ put_back ~ ' en') }} la lista de tareas."
     needs:
-      - Set the home's to-do list on the Settings page, or give it one of its
+      - Set the home's to-do list in Settings, or give it one of its
         own (its implied target).
+
+  todo_remove:
+    title: Take off the to-do list
+    topic: todo_list
+    icon: mdi:playlist-remove
+    description: quitar algo de la lista de tareas
+    # Gone from the list; checking it off (done, and kept) is Check off the
+    # to-do list. The items said are ones on the list, as for the shopping
+    # list's.
+    require: [[quita, borra, elimina, saca], [lista de tareas, lista de pendientes, tareas, pendientes]]
+    optional: [[de, del]]
+    exclude: [mi, mis]
+    wildcard:
+      slot: item
+      after: [quita, borra, elimina, saca]
+      before: [de, del]
+      bounded: true
+      max_words: 8
+    on_list: {item: entity}
+    home: todo_list
+    action:
+      action: todo.remove_item
+      target:
+        entity_id: "{{ slots.entity }}"
+      data:
+        item: "{{ items }}"
+    verbosity: specific
+    response:
+      done:
+        brief: "{{ 'Quitado de la lista de tareas.' if items | count < 2 else 'Quitados de la lista de tareas.' }}"
+        specific: "He quitado {{ slots.item }} de la lista de tareas."
+    needs:
+      - Set the home's to-do list in Settings, or give it one of its
+        own (its implied target).
+
+  todo_check:
+    title: Check off the to-do list
+    topic: todo_list
+    icon: mdi:playlist-check
+    description: marcar algo de la lista de tareas como hecho
+    # Done, and kept on the list as such: "tacha llamar al fontanero de la
+    # lista de tareas", "marca la declaración y la colada como hechas en la
+    # lista de tareas".
+    require: [[tacha, tachar, marca, marcar], [lista de tareas, lista de pendientes, tareas, pendientes]]
+    optional: [[de, del, en], [como hecho, como hecha, como hechos, como hechas, como terminado, como terminada]]
+    exclude: [mi, mis]
+    wildcard:
+      slot: item
+      after: [tacha, tachar, marca, marcar]
+      before: [de, del, en, como hecho, como hecha, como hechos, como hechas, como terminado, como terminada]
+      bounded: true
+      max_words: 8
+    on_list: {item: entity}
+    home: todo_list
+    action:
+      repeat:
+        for_each: "{{ items }}"
+        sequence:
+          - action: todo.update_item
+            target:
+              entity_id: "{{ slots.entity }}"
+            data:
+              item: "{{ repeat.item }}"
+              status: completed
+    verbosity: specific
+    response:
+      done:
+        brief: "{{ 'Tachado.' if items | count < 2 else 'Tachados.' }}"
+        specific: "He tachado {{ slots.item }} de la lista de tareas."
+    needs:
+      - Set the home's to-do list in Settings, or give it one of its
+        own (its implied target).
+
+  todo_items:
+    title: What's on the to-do list
+    topic: todo_list
+    icon: mdi:format-list-bulleted
+    description: decir qué hay en la lista de tareas
+    # What is still to do; what was checked off is left out. Someone's own
+    # is What's on my to-do list.
+    examples: ["qué hay en [la|nuestra] lista de tareas", "(lee|léeme|dime) [la|nuestra] lista de tareas"]
+    require: [[qué hay, qué tenemos, lee, léeme, dime], [lista de tareas, lista de pendientes, tareas, pendientes]]
+    optional: [[nuestra]]
+    exclude: [mi, mis]
+    home: todo_list
+    action:
+      - variables:
+          todo: "{{ slots.entity[0] }}"
+      - action: todo.get_items
+        target:
+          entity_id: "{{ todo }}"
+        data:
+          status: needs_action
+        response_variable: found
+      - variables:
+          reply:
+            listed: "{{ found[todo]['items'] | map(attribute='summary') | list }}"
+      - stop: Read the list
+        response_variable: reply
+    response:
+      done: >-
+        {%- set listed = result.listed or [] -%}
+        {%- set count = listed | count -%}
+        {%- if count == 0 -%}
+        La lista de tareas está vacía.
+        {%- elif count == 1 -%}
+        En la lista de tareas hay {{ listed[0] }}.
+        {%- elif count > 8 -%}
+        Hay {{ count }} cosas en la lista de tareas: {{ listed[:5] | join(', ') }} y {{ count - 5 }} más.
+        {%- else -%}
+        En la lista de tareas: {{ listed[:-1] | join(', ') }} y {{ listed[-1] }}.
+        {%- endif -%}
+    needs:
+      - Set the home's to-do list in Settings, or give it one of its
+        own (its implied target).
+
+  todo_add_mine:
+    title: Add to my to-do list
+    topic: todo_list
+    icon: mdi:account-check-outline
+    description: añadir algo a mi lista de tareas
+    # The speaker's own (People page); where nobody has one, this one.
+    require: [[añade, agrega, pon, apunta], [mi lista de tareas, mis tareas, mi lista de pendientes, mis pendientes]]
+    optional: [[a, en]]
+    wildcard:
+      slot: item
+      after: [añade, agrega, pon, apunta]
+      before: [a, en]
+      bounded: true
+      max_words: 8
+    home: todo_list
+    mine: todo_list
+    # The whole of it: one the list has already isn't added again
+    # (already_on_list).
+    adds_to_list: {slot: item, list: entity}
+    action:
+      # What isn't on the list is added; what was checked off is checked back on.
+      - repeat:
+          for_each: "{{ items }}"
+          sequence:
+            - action: todo.add_item
+              target:
+                entity_id: "{{ slots.entity }}"
+              data:
+                item: "{{ repeat.item }}"
+      - repeat:
+          for_each: "{{ back }}"
+          sequence:
+            - action: todo.update_item
+              target:
+                entity_id: "{{ slots.entity }}"
+              data:
+                item: "{{ repeat.item }}"
+                status: needs_action
+    verbosity: specific
+    response:
+      done:
+        brief: Añadido a tu lista de tareas.
+        specific: "He añadido {{ slots.item }} a tu lista de tareas."
+        verbose: "{{ ('He añadido ' ~ added ~ ' a') if added else ('He vuelto a poner ' ~ put_back ~ ' en') }} tu lista de tareas."
+    needs:
+      - Give each person their to-do list (People page). Where nobody has one,
+        it adds to the home's (Settings).
+
+  todo_remove_mine:
+    title: Take off my to-do list
+    topic: todo_list
+    icon: mdi:account-remove-outline
+    description: quitar algo de mi lista de tareas
+    # The speaker's own (People page); where nobody has one, this one. The
+    # items said are ones on it, as for the to-do list's.
+    require: [[quita, borra, elimina, saca], [mi lista de tareas, mis tareas, mi lista de pendientes, mis pendientes]]
+    optional: [[de, del]]
+    wildcard:
+      slot: item
+      after: [quita, borra, elimina, saca]
+      before: [de, del]
+      bounded: true
+      max_words: 8
+    on_list: {item: entity}
+    home: todo_list
+    mine: todo_list
+    action:
+      action: todo.remove_item
+      target:
+        entity_id: "{{ slots.entity }}"
+      data:
+        item: "{{ items }}"
+    verbosity: specific
+    response:
+      done:
+        brief: "{{ 'Quitado de tu lista de tareas.' if items | count < 2 else 'Quitados de tu lista de tareas.' }}"
+        specific: "He quitado {{ slots.item }} de tu lista de tareas."
+    needs:
+      - Give each person their to-do list (People page). Where nobody has one,
+        it takes off the home's (Settings).
+
+  todo_check_mine:
+    title: Check off my to-do list
+    topic: todo_list
+    icon: mdi:account-check
+    description: marcar algo de mi lista de tareas como hecho
+    # The speaker's own (People page); where nobody has one, this one. Done,
+    # and kept on the list as such.
+    require: [[tacha, tachar, marca, marcar], [mi lista de tareas, mis tareas, mi lista de pendientes, mis pendientes]]
+    optional: [[de, del, en], [como hecho, como hecha, como hechos, como hechas, como terminado, como terminada]]
+    wildcard:
+      slot: item
+      after: [tacha, tachar, marca, marcar]
+      before: [de, del, en, como hecho, como hecha, como hechos, como hechas, como terminado, como terminada]
+      bounded: true
+      max_words: 8
+    on_list: {item: entity}
+    home: todo_list
+    mine: todo_list
+    action:
+      repeat:
+        for_each: "{{ items }}"
+        sequence:
+          - action: todo.update_item
+            target:
+              entity_id: "{{ slots.entity }}"
+            data:
+              item: "{{ repeat.item }}"
+              status: completed
+    verbosity: specific
+    response:
+      done:
+        brief: "{{ 'Tachado.' if items | count < 2 else 'Tachados.' }}"
+        specific: "He tachado {{ slots.item }} de tu lista de tareas."
+    needs:
+      - Give each person their to-do list (People page). Where nobody has one,
+        it checks off the home's (Settings).
+
+  todo_items_mine:
+    title: What's on my to-do list
+    topic: todo_list
+    icon: mdi:account-details-outline
+    description: decir qué hay en mi lista de tareas
+    # The speaker's own (People page); where nobody has one, the home's. What
+    # is still to do; what was checked off is left out.
+    examples: ["qué hay en mi lista de tareas", "qué tareas tengo", "(lee|léeme|dime) mi lista de tareas"]
+    require: [[qué hay, qué tengo, lee, léeme, dime], [mi lista de tareas, mis tareas, mi lista de pendientes, mis pendientes]]
+    home: todo_list
+    mine: todo_list
+    action:
+      - variables:
+          todo: "{{ slots.entity[0] }}"
+      - action: todo.get_items
+        target:
+          entity_id: "{{ todo }}"
+        data:
+          status: needs_action
+        response_variable: found
+      - variables:
+          reply:
+            listed: "{{ found[todo]['items'] | map(attribute='summary') | list }}"
+      - stop: Read the list
+        response_variable: reply
+    response:
+      done: >-
+        {%- set listed = result.listed or [] -%}
+        {%- set count = listed | count -%}
+        {%- if count == 0 -%}
+        Tu lista de tareas está vacía.
+        {%- elif count == 1 -%}
+        En tu lista de tareas hay {{ listed[0] }}.
+        {%- elif count > 8 -%}
+        Hay {{ count }} cosas en tu lista de tareas: {{ listed[:5] | join(', ') }} y {{ count - 5 }} más.
+        {%- else -%}
+        En tu lista de tareas: {{ listed[:-1] | join(', ') }} y {{ listed[-1] }}.
+        {%- endif -%}
+    needs:
+      - Give each person their to-do list (People page). Where nobody has one,
+        it reads the home's (Settings).

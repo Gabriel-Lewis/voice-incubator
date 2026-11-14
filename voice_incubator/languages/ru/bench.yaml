@@ -1,7 +1,9 @@
 # Russian sentences and what each must become with the Russian library, for
 # scripts/bench_language.py (spoken) and tests/test_languages.py (typed). The
 # home: these names, the devices in these rooms, a satellite in the кабинет.
-# Numbers are written as said, for text-to-speech.
+# Numbers are written as said, for text-to-speech; "е" for "ё" in the words a
+# command hears, as the model writes them. An alarm's or reminder's time is
+# compared by when the calendar reads it, on a Wednesday afternoon.
 names:
   areas:
     kuhnya: Кухня
@@ -20,6 +22,8 @@ names:
     climate.kondicioner: Кондиционер
     cover.mansardnoe_okno: Мансардное окно
     lock.vhodnaya_dver: Входная дверь
+    sensor.temperatura_na_ulice: Температура на улице
+    binary_sensor.zadnyaya_dver: Задняя дверь
 rooms:
   fan.potolochny_ventilyator: spalnya
   media_player.kuhnya: kuhnya
@@ -67,3 +71,94 @@ sentences:
   - ["Отмени таймер.", cancel_timer, {}, "a timer"]
   - ["Сколько времени осталось на таймере?", timer_status, {}, "a timer question"]
   - ["Неважно.", never_mind, {}, "an example sentence"]
+  # Climate: the home's thermostat (Settings), and asking it.
+  - ["Поставь термостат на двадцать два градуса.", set_temperature_here, {temperature: 22}, "the thermostat, a number"]
+  - ["Какая температура дома?", thermostat, {}, "asking the thermostat"]
+  - ["На что установлен термостат?", thermostat, {}, "asking what it is set to"]
+  - ["Сделай теплее.", heat_up, {step: 1}, "an example sentence"]
+  - ["Подними температуру.", heat_up, {step: 1}, "turned up"]
+  - ["Убавь отопление.", heat_down, {step: -1}, "turned down"]
+  - ["В каком режиме термостат?", thermostat_mode, {}, "its mode"]
+  - ["Переключи термостат на обогрев.", set_thermostat_mode, {mode: heat}, "a mode"]
+  - ["Выключи термостат.", set_thermostat_mode, {mode: "off"}, "off, by the verb"]
+  - ["Какой режим вентилятора у термостата?", thermostat_fan, {}, "its fan"]
+  - ["Поставь вентилятор термостата на авто.", set_thermostat_fan, {mode: auto}, "a fan mode"]
+  # Covers to a position.
+  - ["Открой шторы на пятьдесят процентов.", cover_position_here, {device_class: curtain, percentage: 50}, "a position"]
+  - ["Опусти жалюзи на кухне на тридцать процентов.", cover_position_place, {area: [kuhnya], device_class: blind, percentage: 30}, "a position, a place"]
+  - ["Открой мансардное окно на двадцать процентов.", cover_position_device, {entity: [cover.mansardnoe_okno], percentage: 20}, "a position, by name"]
+  # Brighter, dimmer, the white.
+  - ["Сделай свет ярче.", brighter_here, {step: 30}, "brighter"]
+  - ["Сделай свет на кухне ярче.", brighter_place, {area: [kuhnya], step: 30}, "brighter, a place"]
+  - ["Приглуши свет.", dimmer_here, {step: -30}, "dimmer"]
+  - ["Приглуши маленькую лампу.", dimmer_device, {entity: [light.malenkaya_lampa], step: -30}, "dimmer, by name"]
+  - ["Сделай свет теплым.", light_temperature_here, {color_temperature: "2700"}, "the white, instrumental"]
+  - ["Включи холодный белый свет на кухне.", light_temperature_place, {area: [kuhnya], color_temperature: "5000"}, "the white, a place"]
+  # What plays: the music or the TV.
+  - ["Поставь телевизор на паузу.", pause_music_here, {kind: tv}, "the TV"]
+  - ["Поставь музыку на кухне на паузу.", pause_music_place, {area: [kuhnya], kind: music}, "the music, a place"]
+  - ["Сделай телевизор тише.", volume_down_here, {kind: tv}, "the TV's volume"]
+  - ["Поставь громкость телевизора на двадцать процентов.", set_volume_here, {kind: tv, percentage: 20}, "the TV's volume, a number"]
+  - ["Включи мой плейлист.", play_my_playlist, {}, "an example sentence"]
+  # The satellites.
+  - ["Объяви, что ужин готов.", announce, {message: ужин готов}, "free text after что"]
+  - ["Объяви на кухне, что ужин готов.", announce, {area: [kuhnya], message: ужин готов}, "a place, then free text"]
+  - ["Соедини с кухней.", intercom, {area: [kuhnya]}, "an area in the instrumental"]
+  - ["Позвони на кухню.", intercom, {area: [kuhnya]}, "an area in the accusative"]
+  - ["Говори громче.", own_volume_up, {}, "its own volume"]
+  - ["Говори тише.", own_volume_down, {}, "its own volume"]
+  - ["Поставь свою громкость на пятьдесят процентов.", own_volume_set, {percentage: 50}, "its own volume, a number"]
+  - ["Кто я?", who_am_i, {}, "an example sentence"]
+  # Sensors.
+  - ["Какая температура на улице?", sensor_value, {entity: [sensor.temperatura_na_ulice]}, "a sensor by name"]
+  - ["Задняя дверь открыта?", binary_sensor_state, {entity: [binary_sensor.zadnyaya_dver], asked: open}, "a binary sensor"]
+  # Alarms, on the calendar.
+  - ["Поставь будильник на семь вечера завтра.", set_alarm, {time: семь вечера завтра}, "time, then the day"]
+  - ["Разбуди меня в шесть пятнадцать завтра утром.", set_alarm, {time: шесть пятнадцать завтра утром}, "wake me up"]
+  - ["Поставь будильник на без четверти семь завтра.", set_alarm, {time: без четверти семь завтра}, "без четверти"]
+  - ["Поставь будильник на шесть сорок пять по будням.", set_alarm, {time: шесть сорок пять по будням}, "repeating"]
+  - ["Поставь будильник на семь каждую субботу.", set_alarm, {time: семь каждую субботу}, "every Saturday"]
+  - ["Разбуди меня в семь в субботу.", set_alarm, {time: семь в субботу}, "a weekday, the morning"]
+  - ["Поставь будильник на полдень.", set_alarm, {time: полдень}, "noon"]
+  - ["Поставь будильник на десять вечера.", set_alarm, {time: десять вечера}, "evening"]
+  - ["Поставь будильник на завтра на восемь утра.", set_alarm, {time: завтра на восемь утра}, "the day first"]
+  - ["Поставь будильник через двадцать минут.", set_alarm, {time: через двадцать минут}, "from now"]
+  - ["Разбуди меня через восемь часов.", set_alarm, {time: через восемь часов}, "from now, hours"]
+  - ["Отмени будильник на завтра.", cancel_alarm, {time: завтра}, "a day alone"]
+  - ["Отмени будильник на семь.", cancel_alarm, {time: семь}, "a time"]
+  - ["Отмени завтрашний будильник.", cancel_alarm, {time: завтрашний}, "a day as an adjective, before"]
+  - ["Какие у меня будильники?", alarm_status, {}, "an example sentence"]
+  # Reminders, on the calendar; without a time, on the to-do list.
+  - ["Напомни мне в пять вечера позвонить маме.", remind_me, {entity: [todo.reminders], reminder: в пять вечера позвонить маме}, "time first"]
+  - ["Напомни выносить мусор каждый вторник в семь вечера.", remind_me, {entity: [todo.reminders], reminder: выносить мусор каждый вторник в семь вечера}, "repeating, time last"]
+  - ["Напомни через десять минут проверить духовку.", remind_me, {entity: [todo.reminders], reminder: через десять минут проверить духовку}, "from now"]
+  - ["Напомни завтра в девять позвонить стоматологу.", remind_me, {entity: [todo.reminders], reminder: завтра в девять позвонить стоматологу}, "a day and a time first"]
+  - ["Напомни отдохнуть десять минут в пять вечера.", remind_me, {entity: [todo.reminders], reminder: отдохнуть десять минут в пять вечера}, "a length that is the reminder's"]
+  - ["Напомни купить молоко.", remind_me, {entity: [todo.reminders], reminder: купить молоко}, "no time: the to-do list"]
+  - ["Отмени напоминание позвонить маме.", cancel_reminder, {reminder: позвонить маме}, "what it is about"]
+  - ["Удали напоминание про стоматолога.", cancel_reminder, {reminder: про стоматолога}, "about"]
+  - ["Удали напоминание на завтра.", cancel_reminder, {reminder: завтра}, "its day"]
+  - ["Отмени напоминание в пять вечера.", cancel_reminder, {reminder: в пять вечера}, "its time"]
+  - ["Отмени напоминание.", cancel_reminder, {}, "the only one, or which"]
+  - ["Какие у меня напоминания?", reminder_status, {}, "an example sentence"]
+  - ["Что у меня в календаре на сегодня?", my_calendar, {}, "an example sentence"]
+  # Lists.
+  - ["Убери молоко из списка покупок.", shopping_list_remove, {item: молоко}, "free text, genitive list"]
+  - ["Вычеркни хлеб из списка покупок.", shopping_list_check, {item: хлеб}, "checked off"]
+  - ["Что в списке покупок?", shopping_list_items, {}, "an example sentence"]
+  - ["Добавь позвонить сантехнику в список дел.", todo_add, {item: позвонить сантехнику}, "to-do"]
+  - ["Добавь позвонить сантехнику в мой список дел.", todo_add_mine, {item: позвонить сантехнику}, "my to-do"]
+  - ["Убери стирку из списка дел.", todo_remove, {item: стирку}, "off the to-do list"]
+  - ["Убери стирку из моего списка дел.", todo_remove_mine, {item: стирку}, "off my to-do list"]
+  - ["Отметь налоги в списке дел.", todo_check, {item: налоги}, "checked off the to-do list"]
+  - ["Отметь налоги в моем списке дел.", todo_check_mine, {item: налоги}, "checked off my to-do list"]
+  - ["Что в списке дел?", todo_items, {}, "an example sentence"]
+  - ["Что в моем списке дел?", todo_items_mine, {}, "an example sentence, mine"]
+  # Weather.
+  - ["Какая сегодня погода?", weather, {}, "an example sentence"]
+  - ["Какая погода будет завтра?", weather_day, {day: tomorrow}, "a day"]
+  - ["Какой прогноз на субботу?", weather_day, {day: saturday}, "a weekday, accusative"]
+  - ["Какая погода будет на выходных?", weather_day, {day: weekend}, "the weekend"]
+  - ["Какой прогноз на неделю?", weather_week, {}, "the week"]
+  - ["Будет ли завтра дождь?", will_it_rain, {day: tomorrow, what: rain}, "rain, a day"]
+  - ["Пойдет ли снег в субботу?", will_it_rain, {day: saturday, what: snow}, "snow, a weekday"]

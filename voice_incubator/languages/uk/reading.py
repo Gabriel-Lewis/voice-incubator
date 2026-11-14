@@ -23,6 +23,11 @@ ARTICLES = ("мій", "моя", "моє", "мою", "моїй", "моєму", "�
 """Not articles: possessives, which may stand where they would ("у моїй
 спальні")."""
 
+WHEN_STARTS = ("на", "в", "у")
+"""Words of PLACE_BEFORE and ARTICLES an alarm's time or a reminder may
+start with, kept there: "на сьому", "у суботу", "в сім вечора"
+(voice_incubator/engine.py, free text)."""
+
 # ------------------------------------------------------------------- music
 
 MUSIC_GENERIC = {

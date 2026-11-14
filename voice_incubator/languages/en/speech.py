@@ -58,6 +58,9 @@ CONFIRM_UNCLEAR = "Sorry, I didn't catch that."
 
 NO_COMMANDS = "No voice commands are set up yet. Add some in the Voice Incubator app."
 
+VOICE_SAMPLE = "Hello! This is how I sound. Turned on the lights in the kitchen."
+"""What the Settings page's Try says in a voice, when it is given nothing else."""
+
 TIMERS_NEED_INTEGRATION = "Timers need the Voice Incubator integration in Home Assistant."
 
 NO_AREA = "I don't know which area I'm in. Give this satellite an area."

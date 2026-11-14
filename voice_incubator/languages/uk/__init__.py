@@ -22,12 +22,15 @@ PACK = Pack(
     transducer="stt_ua_fastconformer_hybrid_large_pc-transducer",
     transducer_about="stt_ua_fastconformer_hybrid_large_pc, 115M parameters",
     piper="uk_UA-tetiana-high.onnx",
+    piper_languages=("uk_UA",),
     adapt={
         "language": "uk",
         "filler": [
             "в", "у", "на", "до", "з", "із", "зі", "мій", "моя", "моє", "мою", "мої", "моїй", "моєму", "мені",
-            "будь ласка", "можеш", "можете", "можна", "будь-ласка", "будь ласочка", "прошу", "а", "ну", "і",
+            "будь ласка", "можеш", "можете", "можна", "будь-ласка", "будь ласочка", "прошу", "а", "ну", "ну і",
         ],
+        # Not "і": it joins two commands ("увімкни світло і вимкни телевізор",
+        # compound.py), so it is no filler; "ну і" as a lead-in is.
         "name_cues": ["мій", "моя", "моє", "мою", "моїй", "моєму", "назвою", "назва"],
         # "Ввімкни" (on) can score closer to "вимкни" (off) than to itself on
         # this model: off counts only when it clearly beats on. Said, "вимкни"

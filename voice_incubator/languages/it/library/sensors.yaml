@@ -1,0 +1,111 @@
+# Sensors (Italian), as the English library's sensors.yaml: asking a sensor or
+# a binary sensor by its name (Names page): "quanto segna la temperatura
+# esterna", "quanta corrente consuma l'asciugatrice", "la porta d'ingresso è
+# aperta?", "la cantina è allagata?".
+#
+# A sensor says its value as Home Assistant has it, in its unit ("21,5
+# gradi", "40 per cento"), or its state in words; a binary sensor says what it
+# is in the words of its device class (aperta o chiusa, bagnato o asciutto,
+# occupato o libero ...), and sì or no when asked about one of them. A name
+# may be shared by one in each room: the room said picks it, else the
+# satellite's. Said as "name: value", which needs no agreement with the name.
+title: Sensors
+icon: mdi:gauge
+
+commands:
+  sensor_value:
+    title: What a sensor says
+    icon: mdi:gauge
+    description: sapere cosa misura un sensore
+    require: [[qual è, quale, quanto, quanta, quanti, quante, com'è, dimmi]]
+    optional: [[è, sono, segna, indica, misura, consuma, usa, c'è], [valore, livello, lettura]]
+    names:
+      entity: {count: 1, domains: [sensor]}
+      area: {count: 1}
+    # A room with the sensor picks it out: the one of that name there.
+    combinations: [[entity], [entity, area]]
+    response: >-
+      {%- set e = slots.entity[0] -%}
+      {%- set name = names.get(e, state_attr(e, 'friendly_name')) -%}
+      {%- set state = states(e) -%}
+      {%- set number = state | float(none) -%}
+      {%- set unit = state_attr(e, 'unit_of_measurement') -%}
+      {%- set units = {'°C': 'gradi', '°F': 'gradi', '%': 'per cento', 'W': 'watt', 'kW': 'kilowatt',
+        'Wh': 'wattora', 'kWh': 'kilowattora', 'V': 'volt', 'A': 'ampere', 'lx': 'lux',
+        'ppm': 'parti per milione', 'ppb': 'parti per miliardo', 'µg/m³': 'microgrammi per metro cubo',
+        'hPa': 'ettopascal', 'mbar': 'millibar', 'inHg': 'pollici di mercurio', 'mm': 'millimetri',
+        'cm': 'centimetri', 'in': 'pollici', 'km/h': 'chilometri orari', 'mph': 'miglia orarie',
+        'm/s': 'metri al secondo', 'L': 'litri', 'gal': 'galloni', 'm³': 'metri cubi',
+        'min': 'minuti', 'h': 'ore', 's': 'secondi', 'd': 'giorni', 'dB': 'decibel', 'kg': 'chilogrammi',
+        'lb': 'libbre', 'mm/h': "millimetri all'ora", 'in/h': "pollici all'ora"} -%}
+      {%- set said = {'unavailable': 'non disponibile', 'unknown': 'sconosciuto'} -%}
+      {%- set giorni = ['lunedì', 'martedì', 'mercoledì', 'giovedì', 'venerdì', 'sabato', 'domenica'] -%}
+      {%- if state in ['unavailable', 'unknown'] -%}
+      {{ name }}: {{ said[state] }} al momento.
+      {%- elif number is not none -%}
+      {%- set shown = (number | round(1)) | string -%}
+      {%- set shown = shown[:-2] if shown.endswith('.0') else shown -%}
+      {{ name }}: {{ shown | replace('.', ',') }}{{ (' ' ~ units.get(unit, unit)) if unit else '' }}.
+      {%- elif state_attr(e, 'device_class') == 'timestamp' -%}
+      {%- set t = as_local(as_datetime(state)) -%}
+      {{ name }}: {{ giorni[t.weekday()] }}
+      {{- ' a mezzogiorno' if (t.hour, t.minute) == (12, 0) else ' a mezzanotte' if (t.hour, t.minute) == (0, 0)
+        else (" all'una" if t.hour == 1 else ' alle ' ~ t.hour) ~ ((' e ' ~ t.minute) if t.minute else '') }}.
+      {%- else -%}
+      {{ name }}: {{ state | replace('_', ' ') }}.
+      {%- endif -%}
+    needs:
+      - Add names for the sensors it may ask about (Names page).
+
+  binary_sensor_state:
+    title: Is a binary sensor on
+    icon: mdi:checkbox-blank-circle-outline
+    description: sapere se un sensore binario è attivo
+    require: [[è, sono]]
+    optional: [[ancora]]
+    names:
+      entity: {count: 1, domains: [binary_sensor]}
+      area: {count: 1}
+    lists:
+      asked: {list: binary_states}
+    combinations: [[entity, asked], [entity, area, asked]]
+    # ``keys``: the two states, as the binary_states list's values (English,
+    # as Home Assistant's device classes have them); ``words``: what each is
+    # said as.
+    response: >-
+      {%- set e = slots.entity[0] -%}
+      {%- set name = names.get(e, state_attr(e, 'friendly_name')) -%}
+      {%- set state = states(e) -%}
+      {%- set keys = {'door': ['open', 'closed'], 'garage_door': ['open', 'closed'], 'window': ['open', 'closed'],
+        'opening': ['open', 'closed'], 'lock': ['unlocked', 'locked'], 'moisture': ['wet', 'dry'],
+        'motion': ['detecting motion', 'clear'], 'occupancy': ['occupied', 'clear'], 'presence': ['home', 'away'],
+        'plug': ['plugged in', 'unplugged'], 'battery': ['low', 'normal'], 'battery_charging': ['charging', 'not charging'],
+        'connectivity': ['connected', 'disconnected'], 'running': ['running', 'not running'],
+        'smoke': ['detecting smoke', 'clear'], 'gas': ['detecting gas', 'clear'],
+        'carbon_monoxide': ['detecting carbon monoxide', 'clear'], 'problem': ['reporting a problem', 'OK'],
+        'cold': ['cold', 'normal'], 'heat': ['hot', 'normal'], 'light': ['detecting light', 'dark'],
+        'sound': ['detecting sound', 'quiet'], 'vibration': ['vibrating', 'still'], 'tamper': ['tampered with', 'OK'],
+        'safety': ['unsafe', 'safe'], 'update': ['out of date', 'up to date']} -%}
+      {%- set words = {'door': ['aperta', 'chiusa'], 'garage_door': ['aperta', 'chiusa'], 'window': ['aperta', 'chiusa'],
+        'opening': ['aperto', 'chiuso'], 'lock': ['sbloccato', 'chiuso a chiave'], 'moisture': ['acqua rilevata', 'asciutto'],
+        'motion': ['movimento rilevato', 'nessun movimento'], 'occupancy': ['occupato', 'libero'],
+        'presence': ['a casa', 'fuori casa'], 'plug': ['collegato', 'scollegato'], 'battery': ['batteria scarica', 'batteria normale'],
+        'battery_charging': ['in carica', 'non in carica'], 'connectivity': ['connesso', 'disconnesso'],
+        'running': ['in funzione', 'fermo'], 'smoke': ['fumo rilevato', 'nessun fumo'], 'gas': ['gas rilevato', 'nessun gas'],
+        'carbon_monoxide': ['monossido di carbonio rilevato', 'nessun monossido di carbonio'],
+        'problem': ['problema segnalato', 'tutto a posto'], 'cold': ['freddo', 'normale'], 'heat': ['caldo', 'normale'],
+        'light': ['luce rilevata', 'buio'], 'sound': ['suono rilevato', 'silenzio'], 'vibration': ['vibrazione rilevata', 'fermo'],
+        'tamper': ['manomesso', 'tutto a posto'], 'safety': ['non sicuro', 'sicuro'], 'update': ['da aggiornare', 'aggiornato']} -%}
+      {%- set said = {'unavailable': 'non disponibile', 'unknown': 'sconosciuto'} -%}
+      {%- set pair = keys.get(state_attr(e, 'device_class'), ['on', 'off']) -%}
+      {%- set two = words.get(state_attr(e, 'device_class'), ['acceso', 'spento']) -%}
+      {%- set now = two[0] if state == 'on' else two[1] -%}
+      {%- if state not in ['on', 'off'] -%}
+      {{ name }}: {{ said.get(state, state) }} al momento.
+      {%- elif slots.asked in pair or slots.asked in ['on', 'off'] -%}
+      {{ 'Sì' if (slots.asked in [pair[0], 'on']) == (state == 'on') else 'No' }}, {{ name }}: {{ now }}.
+      {%- else -%}
+      {{ name }}: {{ now }}.
+      {%- endif -%}
+    needs:
+      - Add names for the binary sensors it may ask about (Names page).

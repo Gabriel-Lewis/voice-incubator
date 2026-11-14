@@ -1,6 +1,16 @@
-# Lights and switches (Spanish), as the English library's lights.yaml.
+# Lights and switches (Spanish), as the English library's lights.yaml: on and
+# off, brightness, color, and asking which are on.
+#
+# What acts on devices runs Home Assistant's intents (intent:): on a device by
+# name, or on those added to the area on the Names page (devices), each by
+# name -- and the unavailable said.
 title: Lights and switches
 icon: mdi:lightbulb-outline
+
+# Commands shown together in Add a command: each one's topic.
+topics:
+  on_and_off: {title: On and off, icon: mdi:lightbulb-on-outline}
+  brightness_and_color: {title: Brightness and color, icon: mdi:brightness-6}
 
 # What the versions add to a command (merged into them with <<).
 shared:
@@ -17,11 +27,47 @@ shared:
     combinations: [[area], [floor]]
     needs:
       - Add names for the areas and floors it may act in (Names page).
+  # 30 percent brighter or dimmer (slots.step), never to off: the lights that
+  # are on here, or in an area or floor named, of those added there (Names) --
+  # no intent changes brightness by a step -- or a light by name, which
+  # comes on to be brightened.
+  brightness_step: &brightness_step
+    - variables:
+        none_on: {outcome: no_lights}
+        lights: >-
+          {%- if slots.entity -%}
+          {{ (slots.entity | select('is_state', 'on') | list) if slots.step | int < 0 else slots.entity }}
+          {%- else -%}
+          {%- set ns = namespace(ids=[]) -%}
+          {%- for s in states.light if devices.get(s.entity_id) in place.areas and s.state == 'on'
+            and s.attributes.supported_color_modes != ['onoff'] -%}
+          {%- set ns.ids = ns.ids + [s.entity_id] -%}
+          {%- endfor -%}
+          {{ ns.ids }}
+          {%- endif -%}
+    - if: "{{ not lights }}"
+      then:
+        - stop: No lights to change
+          response_variable: none_on
+    - repeat:
+        for_each: "{{ lights }}"
+        sequence:
+          - action: light.turn_on
+            target:
+              entity_id: "{{ repeat.item }}"
+            data:
+              brightness_pct: >-
+                {{ [[((state_attr(repeat.item, 'brightness') or 0) / 2.55) | round(0) + slots.step | int, 1] | max, 100] | min | int }}
+  brightness_said: &brightness_said
+    no_lights: >-
+      {{ (names.get(slots.entity[0], state_attr(slots.entity[0], 'friendly_name')) ~ ' está apagada.') if slots.entity
+      else 'No hay luces encendidas ' ~ place.said ~ '.' }}
 
 commands:
   # Lights here, in an area or on a floor named, or a device by name.
   turn_on:
     title: Turn on
+    topic: on_and_off
     icon: mdi:lightbulb-on-outline
     description: encender la luz
     # "Pon la luz" turns it on, as Spain says it.
@@ -44,6 +90,7 @@ commands:
           {%- else -%}
           He encendido {{ (ns.names[:-1] | join(', ') ~ ' y ' ~ ns.names[-1]) if n > 1 else ns.names[0] }} {{ place.said }}.
           {%- endif -%}
+    formerly: [lights_on, device_on]
     variants:
       here:
         title: Turn on the lights in this satellite's area
@@ -71,6 +118,7 @@ commands:
 
   turn_off:
     title: Turn off
+    topic: on_and_off
     icon: mdi:lightbulb-off-outline
     description: apagar la luz
     require: [[luz, luces, lámpara, lámparas, iluminación], [apaga, apague, apagues, apagar, desactiva, desactivar]]
@@ -92,6 +140,7 @@ commands:
           {%- else -%}
           He apagado {{ (ns.names[:-1] | join(', ') ~ ' y ' ~ ns.names[-1]) if n > 1 else ns.names[0] }} {{ place.said }}.
           {%- endif -%}
+    formerly: [lights_off, device_off]
     variants:
       here:
         title: Turn off the lights in this satellite's area
@@ -118,6 +167,7 @@ commands:
 
   any_lights_on:
     title: Are any lights on
+    topic: on_and_off
     icon: mdi:lightbulb-question
     description: saber qué luces están encendidas
     # No example sentences: one said word for word carries no area or floor.
@@ -144,7 +194,7 @@ commands:
       Sí, hay {{ count }} luces encendidas{{ where }}.
       {%- else -%}
       Sí, {{ (ns.on[:-1] | join(', ') ~ ' y ' ~ ns.on[-1]) if count > 1 else ns.on[0] }}
-      {{- ' está encendida' if count == 1 else ' están encendidas' }}.
+      {{- ' está encendida' if count == 1 else ' están encendidas' }}{{ where }}.
       {%- endif -%}
     variants:
       here:
@@ -182,13 +232,23 @@ commands:
 
   set_brightness:
     title: Set the brightness
+    topic: brightness_and_color
     icon: mdi:brightness-6
     description: ajustar el brillo de la luz
     supports: brightness
-    require: [[brillo, por ciento]]
-    optional: [[pon, sube, baja, ajusta, cambia, regula], [luz, luces, lámpara, lámparas], [brillo], [por ciento]]
+    # To a number, also turned on, up or down: "baja la luz al veinte por
+    # ciento", "enciende la luz de la cocina al cincuenta por ciento". Never
+    # the volume's, the heat's or the blinds', in kelvin, or in some minutes.
+    require: [[brillo, por ciento, luz, luces, lámpara, lámparas]]
+    optional:
+      - [pon, con, sube, baja, ajusta, cambia, regula, atenúa, enciende, prende]
+      - [luz, luces, lámpara, lámparas]
+      - [brillo]
+      - [por ciento]
     # A question: "cuánto es el 15 por ciento de 80".
-    exclude: [cuánto, cuánta, qué, cuál, es, son, calcula, volumen]
+    exclude: [cuánto, cuánta, qué, cuál, es, son, calcula, volumen, música, tele, televisión, termostato, temperatura,
+              grados, kelvin, minutos, minuto, horas, hora, segundos, segundo, persiana, persianas, cortina, cortinas,
+              toldo, toldos, estor, estores, veneciana, venecianas, ventana, ventanas]
     number: percentage
     intent:
       name: HassLightSet
@@ -219,6 +279,7 @@ commands:
 
   light_color:
     title: Set the light color
+    topic: brightness_and_color
     icon: mdi:format-color-fill
     description: cambiar el color de la luz
     supports: color
@@ -256,3 +317,117 @@ commands:
         <<: *place
         title: Set the light color in an area or floor
         combinations: [[area, color], [floor, color]]
+
+  brighter:
+    title: Brighter
+    topic: brightness_and_color
+    icon: mdi:brightness-7
+    description: subir la luz
+    supports: brightness
+    # "Sube la luz", "más luz", "aumenta el brillo".
+    require: [[sube, súbele, aumenta, más], [luz, luces, brillo, lámpara, lámparas]]
+    optional: [[un poco, algo], [pon]]
+    exclude: [volumen, música, por ciento]
+    slots: {step: 30}
+    action: *brightness_step
+    verbosity: beep
+    response:
+      <<: *brightness_said
+      done:
+        brief: Luz subida.
+        specific: >-
+          He subido {{ names.get(slots.entity[0], state_attr(slots.entity[0], 'friendly_name')) if slots.entity
+          else 'las luces ' ~ place.said }}.
+    variants:
+      here:
+        title: Brighter in this satellite's area
+        examples: ["(sube|aumenta) [un poco] la luz [aquí]", "[pon] más luz [aquí]"]
+      device:
+        <<: *device
+        title: Brighten a light by name
+        require: [[sube, súbele, aumenta, aclara]]
+        names:
+          entity: {count: 1, domains: [light]}
+          area: {count: 1}
+        needs:
+          - Add names for the lights it may brighten (Names page).
+      place:
+        <<: *place
+        title: Brighter in an area or floor
+
+  dimmer:
+    title: Dimmer
+    topic: brightness_and_color
+    icon: mdi:brightness-4
+    description: bajar la luz
+    supports: brightness
+    # "Baja la luz", "menos luz", "atenúa las luces".
+    require: [[baja, bájale, atenúa, reduce, disminuye, menos], [luz, luces, brillo, lámpara, lámparas]]
+    optional: [[un poco, algo], [pon]]
+    exclude: [volumen, música, por ciento]
+    slots: {step: -30}
+    action: *brightness_step
+    verbosity: beep
+    response:
+      <<: *brightness_said
+      done:
+        brief: Luz bajada.
+        specific: >-
+          He bajado {{ names.get(slots.entity[0], state_attr(slots.entity[0], 'friendly_name')) if slots.entity
+          else 'las luces ' ~ place.said }}.
+    variants:
+      here:
+        title: Dimmer in this satellite's area
+        examples: ["(baja|atenúa) [un poco] la luz [aquí]", "[pon] menos luz [aquí]"]
+      device:
+        <<: *device
+        title: Dim a light by name
+        require: [[baja, bájale, atenúa, reduce, disminuye, oscurece]]
+        names:
+          entity: {count: 1, domains: [light]}
+          area: {count: 1}
+        needs:
+          - Add names for the lights it may dim (Names page).
+      place:
+        <<: *place
+        title: Dimmer in an area or floor
+
+  light_temperature:
+    title: Set the color temperature
+    topic: brightness_and_color
+    icon: mdi:white-balance-sunny
+    description: cambiar la temperatura de color de la luz
+    supports: color_temp
+    # By what the white is called: cálido, suave, neutro, frío, luz de día
+    # (the color_temperatures list, in kelvin).
+    require: [[pon, con, cambia], [luz, luces, lámpara, lámparas]]
+    optional: [[temperatura de color, temperatura, tono], [en]]
+    lists:
+      color_temperature: {list: color_temperatures}
+    intent:
+      name: HassLightSet
+      slots: {temperature: "{{ slots.color_temperature }}"}
+    verbosity: beep
+    response:
+      done:
+        brief: Tono cambiado.
+        specific: >-
+          He puesto {{ names.get(slots.entity[0], state_attr(slots.entity[0], 'friendly_name')) if slots.entity
+          else 'las luces ' ~ place.said }} a {{ slots.color_temperature }} kelvin.
+    variants:
+      here:
+        title: Set the color temperature in this satellite's area
+      device:
+        <<: *device
+        title: Set the color temperature of a light by name
+        require: [[pon, con, cambia]]
+        names:
+          entity: {count: 1, domains: [light]}
+          area: {count: 1}
+        combinations: [[entity, color_temperature], [entity, area, color_temperature]]
+        needs:
+          - Add names for the lights it may change (Names page).
+      place:
+        <<: *place
+        title: Set the color temperature in an area or floor
+        combinations: [[area, color_temperature], [floor, color_temperature]]

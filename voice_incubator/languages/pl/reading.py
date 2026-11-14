@@ -19,6 +19,11 @@ from .skills.numbers import fold, parse_num, read_ordinal
 PLACE_BEFORE = ("w", "we", "na", "do", "przy", "u")
 ARTICLES = ("mój", "moja", "moje", "moją", "mojej", "moim", "mojego")
 
+WHEN_STARTS = ("w", "we", "na")
+"""Words of PLACE_BEFORE and ARTICLES an alarm's time or a reminder may
+start with, kept there: "w poniedziałek", "we wtorek", "na jutro na siódmą"
+(voice_incubator/engine.py, free text)."""
+
 # ------------------------------------------------------------------- music
 
 MUSIC_GENERIC = {
@@ -140,13 +145,14 @@ def _numbers(words: list[str]) -> list[str]:
 
 # "wpół do ósmej" is 7:30; "za kwadrans ósma" 7:45, "za dziesięć ósma"
 # 7:50; "kwadrans po siódmej" 7:15, "dziesięć po siódmej" 7:10; "siódma
-# trzydzieści", "siódma zero pięć", "19 30". First that fits wins.
+# trzydzieści", "siódma zero pięć", "19 30" -- the hour in digits too, as a
+# speech-to-text may write it ("wpół do 8"). First that fits wins.
 _SAID = [
-    (re.compile(r"w?pol do h(\d+)"), lambda h: (h - 1, 30)),
-    (re.compile(r"za kwadrans h(\d+)"), lambda h: (h - 1, 45)),
+    (re.compile(r"w?pol do h?(\d+)"), lambda h: (h - 1, 30)),
+    (re.compile(r"za kwadrans h?(\d+)"), lambda h: (h - 1, 45)),
     (re.compile(r"za (\d+) (?:minut\w* )?h(\d+)"), lambda n, h: (h - 1, 60 - n)),
-    (re.compile(r"kwadrans po h(\d+)"), lambda h: (h, 15)),
-    (re.compile(r"(\d+) (?:minut\w* )?po h(\d+)"), lambda n, h: (h, n)),
+    (re.compile(r"kwadrans po h?(\d+)"), lambda h: (h, 15)),
+    (re.compile(r"(\d+) (?:minut\w* )?po h?(\d+)"), lambda n, h: (h, n)),
     (re.compile(r"h?(\d+) 0 (\d)\b"), lambda h, m: (h, m)),
     (re.compile(r"h?(\d+) (?:godzin\w* )?(\d+)"), lambda h, m: (h, m)),
     (re.compile(r"h?(\d+)"), lambda h: (h, 0)),
@@ -160,6 +166,8 @@ def clock(text: str) -> tuple[int, int, str | None] | None:
     for "po południu" or "wieczorem" ("w nocy": small hours am, late ones
     pm), else None (the next time it comes)."""
     text = re.sub(r"(\d{1,2})[:.h](\d{2})\b", r"\1 \2", fold(text.lower()))
+    # A day counted ("za trzy dni o ósmej") is no hour.
+    text = re.sub(r"\bza (?:\S+ )?(?:dni|dnia|dzien|tydzien|tygodni\w*)\b", " ", text)
     words = re.findall(r"[a-z]+|\d+", text)
     joined = " ".join(words)
     meridiem = None

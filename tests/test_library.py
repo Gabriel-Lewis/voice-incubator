@@ -190,6 +190,61 @@ def test_every_language_files_its_commands_as_english_does():
         assert {c: files[c] for c in their_files} == their_files, code
 
 
+STRUCTURE = (
+    "topic", "icon", "verbosity", "home", "music", "timer", "supports", "mine", "on_list", "adds_to_list", "scene",
+    "script", "announce", "intercom", "confirm", "slots", "combinations", "names", "intent",
+)
+"""What a library command does and acts on: the same in every language."""
+UI = ("title", "needs")
+"""What the web UI shows of it, in English whatever the language."""
+
+
+def _structure(entry):
+    spec = entry["spec"]
+    out = {key: spec[key] for key in STRUCTURE if key in spec}
+    # What is said, quoted in the needs, is said in the language.
+    needs = [re.sub(r'"[^"]*"|“[^”]*”', '"…"', need) for need in entry["needs"]]
+    out.update(file=entry["file"], family=entry["family"], variant=entry["variant"], title=entry["title"], needs=needs)
+    if "number" in spec:
+        number = spec["number"]
+        out["number"] = number if isinstance(number, str) else number.get("preset") or number.get("slot")
+    if "lists" in spec:
+        out["lists"] = {slot: value.get("list") if isinstance(value, dict) else value
+                        for slot, value in (spec["lists"] or {}).items()}
+    if "wildcard" in spec:
+        wildcards = spec["wildcard"] if isinstance(spec["wildcard"], list) else [spec["wildcard"]]
+        # How many words it may take is the language's.
+        out["wildcard"] = [{k: w.get(k) for k in ("slot", "to_end")} for w in wildcards]
+    if "action" in spec:
+        # Its steps' actions; their data may carry words of the language.
+        out["action"] = re.findall(r"'action': '([a-z_]+\.[a-z_]+)'", str(spec["action"]))
+    return out
+
+
+@pytest.mark.parametrize("code", [c for c in languages.codes() if c != "en"])
+def test_every_language_has_englishs_commands(code):
+    """Each of English's library commands, in every language: the same id,
+    file and versions, doing the same -- what it acts on, its slots, lists
+    and actions, what the UI shows (title, needs) -- only said in the
+    language: its keywords, examples, description and responses."""
+    languages.use("en")
+    try:
+        english = {e["id"]: _structure(e) for e in load_library()}
+        languages.use(code)
+        own = {e["id"]: _structure(e) for e in load_library()}
+    finally:
+        languages.use(languages.DEFAULT)
+    assert sorted(set(english) - set(own)) == [], f"{code} lacks these"
+    assert sorted(set(own) - set(english)) == [], f"{code} has these English hasn't"
+    differ = {
+        command_id: {key: (english[command_id].get(key), own[command_id].get(key))
+                     for key in set(english[command_id]) | set(own[command_id])
+                     if english[command_id].get(key) != own[command_id].get(key)}
+        for command_id in english
+    }
+    assert {command_id: d for command_id, d in differ.items() if d} == {}
+
+
 def test_a_name_in_several_rooms():
     """A device's names in its area are heard from a satellite there -- ahead
     of another's whole house name -- and elsewhere with its area said

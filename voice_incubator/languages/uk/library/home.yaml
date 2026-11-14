@@ -12,6 +12,11 @@
 title: Covers and locks
 icon: mdi:door
 
+# Commands shown together in Add a command: each one's topic.
+topics:
+  covers: {title: Blinds and covers, icon: mdi:blinds-horizontal}
+  locks: {title: Locks, icon: mdi:lock}
+
 # What the versions add to a command (merged into them with <<).
 shared:
   cover: &cover
@@ -34,6 +39,7 @@ shared:
 commands:
   open_covers:
     title: Open covers
+    topic: covers
     icon: mdi:blinds-open
     description: відкрити ролети
     require: [[відкрий, відкрийте, відчини, відчиніть, підніми, підніміть, відкрити, відчинити, підняти]]
@@ -61,6 +67,7 @@ commands:
           'window': 'вікон'} -%}
         {%- set where = (' ' ~ place.said) if (slots.area or slots.floor) else '' -%}
         Немає {{ kinds[slots.device_class] }}{{ where }}.
+    formerly: [open_cover]
     variants:
       here:
         title: Open the blinds in this satellite's area
@@ -87,6 +94,7 @@ commands:
 
   close_covers:
     title: Close covers
+    topic: covers
     icon: mdi:blinds
     description: закрити ролети
     require: [[закрий, закрийте, зачини, зачиніть, опусти, опустіть, закрити, зачинити, опустити]]
@@ -115,6 +123,7 @@ commands:
           'window': 'вікон'} -%}
         {%- set where = (' ' ~ place.said) if (slots.area or slots.floor) else '' -%}
         Немає {{ kinds[slots.device_class] }}{{ where }}.
+    formerly: [close_cover]
     variants:
       here:
         title: Close the blinds in this satellite's area
@@ -139,8 +148,80 @@ commands:
         title: Close the blinds in an area or floor
         combinations: [[area, device_class], [floor, device_class]]
 
+  # "Відкрий ролети на п'ятдесят відсотків": 100 is open, 0 closed. Only
+  # covers that can be set to a position are (supports); the others there
+  # are left out.
+  cover_position:
+    title: Set covers to a position
+    topic: covers
+    icon: mdi:blinds-horizontal
+    description: встановити ролети в положення
+    require: [[встанови, встановіть, постав, поставте, відкрий, відкрийте, відчини, закрий, закрийте, зачини,
+               підніми, опусти]]
+    optional: [[всі, усі, все], [на, до], [відсотків, відсотки, відсоток, відсотка]]
+    exclude: [чи, ключ, замок, замкни, відімкни, гучність, музику, звук, яскравість, світло, лампу, температуру]
+    lists:
+      device_class: {list: cover_classes}
+    number: percentage
+    supports: position
+    intent:
+      name: HassSetPosition
+      slots: {position: "{{ slots.percentage }}", domain: cover, device_class: "{{ slots.device_class }}"}
+      anywhere: true
+    verbosity: specific
+    response:
+      done: >-
+        {%- set kinds = {'awning': ['маркізу', 'маркізи'], 'blind': ['жалюзі', 'жалюзі'],
+          'curtain': ['штору', 'штори'], 'door': ['двері', 'двері'], 'garage': ['гаражні ворота', 'гаражні ворота'],
+          'gate': ['ворота', 'ворота'], 'shade': ['рулонну штору', 'рулонні штори'], 'shutter': ['ролету', 'ролети'],
+          'window': ['вікно', 'вікна']} -%}
+        {%- set p = slots.percentage | int -%}
+        {%- set where = (' ' ~ place.said) if (slots.area or slots.floor) else '' -%}
+        Встановлюю {{ kinds[slots.device_class][0 if result.count == 1 else 1] }}{{ where }} на {{ p }}
+        {{- ' відсоток' if p % 10 == 1 and p % 100 != 11 else (' відсотки' if p % 10 in [2, 3, 4]
+          and p % 100 not in [12, 13, 14] else ' відсотків') }}.
+      no_devices: >-
+        {%- set kinds = {'awning': 'маркіз', 'blind': 'жалюзі', 'curtain': 'штор', 'door': 'дверей',
+          'garage': 'гаражних воріт', 'gate': 'воріт', 'shade': 'рулонних штор', 'shutter': 'ролет',
+          'window': 'вікон'} -%}
+        {%- set where = (' ' ~ place.said) if (slots.area or slots.floor) else '' -%}
+        Немає {{ kinds[slots.device_class] }}{{ where }}.
+      not_supported: >-
+        {%- set kinds = {'awning': 'Маркізи', 'blind': 'Жалюзі', 'curtain': 'Штори', 'door': 'Двері',
+          'garage': 'Гаражні ворота', 'gate': 'Ворота', 'shade': 'Рулонні штори', 'shutter': 'Ролети',
+          'window': 'Вікна'} -%}
+        {%- set where = (' ' ~ place.said) if (slots.area or slots.floor) else '' -%}
+        {{ kinds[slots.device_class] }}{{ where }} не можна встановити в положення.
+    variants:
+      here:
+        title: Set the blinds in this satellite's area to a position
+        needs: *nothing_here
+      device:
+        <<: *cover
+        title: Set a cover to a position by name
+        icon: mdi:window-shutter-settings
+        description: встановити щось у положення
+        lists: null
+        combinations: [[entity, percentage], [entity, area, percentage]]
+        intent:
+          name: HassSetPosition
+          slots: {position: "{{ slots.percentage }}"}
+        response:
+          done: >-
+            {%- set p = slots.percentage | int -%}
+            Встановлюю {{ names.get(slots.entity[0], state_attr(slots.entity[0], 'friendly_name')) }}: {{ p }}
+            {{- ' відсоток' if p % 10 == 1 and p % 100 != 11 else (' відсотки' if p % 10 in [2, 3, 4]
+              and p % 100 not in [12, 13, 14] else ' відсотків') }}.
+        needs:
+          - Add names for the covers it may set (Names page).
+      place:
+        <<: *place
+        title: Set the blinds in an area or floor to a position
+        combinations: [[area, device_class, percentage], [floor, device_class, percentage]]
+
   lock:
     title: Lock a lock
+    topic: locks
     icon: mdi:lock
     description: замкнути двері
     require: [[замкни, замкніть, замкнути, заблокуй, закрий на ключ, закрий ... на ключ, зачини на ключ,
@@ -163,6 +244,7 @@ commands:
 
   unlock:
     title: Unlock a lock
+    topic: locks
     icon: mdi:lock-open-variant
     description: відімкнути замок
     require: [[відімкни, відімкніть, відімкнути, розблокуй, розблокуйте, відкрий замок, відкрий ... замок]]
@@ -180,12 +262,12 @@ commands:
         brief: Відмикаю.
         specific: "Відмикаю: {{ names.get(slots.entity[0], state_attr(slots.entity[0], 'friendly_name')) }}."
     needs:
-      - Add names for the locks it may unlock (Names page). Anyone the satellite
-        hears can unlock them; keep it to the satellites that should with a
-        command group.
+      - Add names for the locks it may unlock (Names). Anyone a satellite hears
+        can unlock them; turn it off in the areas that shouldn't.
 
   lock_all:
     title: Lock up
+    topic: locks
     icon: mdi:shield-lock
     description: замкнути всі двері
     examples: ["замкни всі двері", "замкни все", "закрий усе на ключ", "зачини всі двері на ключ"]
@@ -201,6 +283,7 @@ commands:
 
   are_covers_open:
     title: Are covers open
+    topic: covers
     icon: mdi:blinds-horizontal
     description: дізнатися, чи відкриті ролети
     # "Чи" may be left out, as it often is: "Ролети відкриті?".
@@ -248,6 +331,7 @@ commands:
       {{ 'Так' if slots.asked == 'open' else 'Ні' }}, відкрито: {{ (ns.opened[:-1] | join(', ') ~ ' і ' ~ ns.opened[-1])
         if count > 1 else ns.opened[0] }}.
       {%- endif -%}
+    formerly: [is_cover_open]
     variants:
       here:
         title: Are the blinds open in this satellite's area
@@ -280,6 +364,7 @@ commands:
 
   is_locked:
     title: Is a lock locked
+    topic: locks
     icon: mdi:lock-question
     description: дізнатися, чи замкнені двері
     # "Чи" may be left out, as it often is: "Вхідні двері замкнені?".
@@ -313,6 +398,7 @@ commands:
 
   all_locked:
     title: Is everything locked
+    topic: locks
     icon: mdi:lock-alert
     description: дізнатися, чи все замкнено
     # "Чи" may be left out, as it often is: "Усі двері замкнені?".

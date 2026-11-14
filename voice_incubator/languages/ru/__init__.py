@@ -20,6 +20,7 @@ PACK = Pack(
     transducer="stt_ru_fastconformer_hybrid_large_pc-transducer",
     transducer_about="stt_ru_fastconformer_hybrid_large_pc, 115M parameters",
     piper="ru_RU-denis-medium.onnx",
+    piper_languages=("ru_RU",),
     adapt={
         "language": "ru",
         "filler": [

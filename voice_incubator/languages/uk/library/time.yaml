@@ -1,10 +1,17 @@
-# Date and time (Ukrainian), as the English library's time.yaml.
+# Date and time (Ukrainian), as the English library's time.yaml: the time
+# and the date now. A time from now ("котра година буде через 45 хвилин") is
+# a question: the clock skill's.
 title: Date and time
 icon: mdi:clock-outline
+
+# Commands shown together in Add a command: each one's topic.
+topics:
+  date_and_time: {title: Date and time, icon: mdi:clock-outline}
 
 commands:
   what_time:
     title: What time is it
+    topic: date_and_time
     icon: mdi:clock-outline
     description: дізнатися, котра година
     examples: ["котра [зараз] година", "скільки [зараз] часу", "яка зараз година", "скажи, котра година"]
@@ -12,11 +19,12 @@ commands:
     optional: [[зараз, тепер], [скажи, підкажи]]
     # Other times: "о котрій зачиняється магазин", "котра година буде через
     # 45 хвилин", "скільки часу до полудня" (answered as questions; "до" is
-    # filler, so the time it is until).
-    exclude: [через, після, буде, була, відкривається, зачиняється, о котрій, києві, лондоні, першої, другої,
-              третьої, четвертої, п'ятої, шостої, сьомої, восьмої, дев'ятої, десятої, одинадцятої, дванадцятої,
-              тринадцятої, чотирнадцятої, п'ятнадцятої, шістнадцятої, сімнадцятої, вісімнадцятої, дев'ятнадцятої,
-              двадцятої, півночі, полудня, пів]
+    # filler, so the time it is until); an alarm's: "на котру годину
+    # будильник".
+    exclude: [через, після, буде, була, відкривається, зачиняється, о котрій, києві, лондоні, будильник, будильника,
+              будильники, нагадування, першої, другої, третьої, четвертої, п'ятої, шостої, сьомої, восьмої,
+              дев'ятої, десятої, одинадцятої, дванадцятої, тринадцятої, чотирнадцятої, п'ятнадцятої, шістнадцятої,
+              сімнадцятої, вісімнадцятої, дев'ятнадцятої, двадцятої, півночі, полудня, пів]
     response: >-
       {%- set h = now().hour -%}
       {%- set m = now().minute -%}
@@ -39,6 +47,7 @@ commands:
 
   what_date:
     title: What's the date
+    topic: date_and_time
     icon: mdi:calendar-today
     description: дізнатися сьогоднішню дату
     examples: ["яке сьогодні число", "яке число сьогодні", "яка сьогодні дата", "який сьогодні день", "яке число"]

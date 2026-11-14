@@ -510,21 +510,26 @@ OUTCOMES = {
 
 
 def _examples() -> list[tuple[dict[str, Any], list[Event], list[Event]]]:
+    """What the UI's examples of each outcome are made from: what was said
+    (slots), the alarms and the reminders -- in the language's words (its
+    calendar module's ``EXAMPLES``)."""
+    say = words()
+    said = say.EXAMPLES
     now = _EXAMPLE_NOW
-    seven = Event("1", now.replace(hour=7, minute=0) + timedelta(days=1), "Alarm", "alarm")
-    weekday = Event("2", now.replace(hour=6, minute=30) + timedelta(days=1), "Alarm", "alarm",
+    seven = Event("1", now.replace(hour=7, minute=0) + timedelta(days=1), say.ALARM_TITLE, "alarm")
+    weekday = Event("2", now.replace(hour=6, minute=30) + timedelta(days=1), say.ALARM_TITLE, "alarm",
                     rrule="FREQ=WEEKLY;BYDAY=MO,TU,WE,TH,FR")
-    call = Event("3", now.replace(hour=17, minute=0), "Call mom", "reminder")
-    bins = Event("4", now.replace(hour=19, minute=0) + timedelta(days=6), "Take out the bins", "reminder")
+    call = Event("3", now.replace(hour=17, minute=0), said["call"], "reminder")
+    bins = Event("4", now.replace(hour=19, minute=0) + timedelta(days=6), said["bins"], "reminder")
     return [
-        ({"time": "7:30 tomorrow", "reminder": "to call mom at 5 pm"}, [seven], [call]),
-        ({"reminder": "to call mom"}, [], [call, bins]),
-        ({"reminder": "to feed the cat"}, [], [call, bins]),
-        ({"time": "", "reminder": "to call mom tomorrow"}, [seven, weekday], [call]),
-        ({"time": "8", "reminder": "to"}, [seven, weekday], []),
-        ({"reminder": "to call mom"}, [], []),
+        ({"time": said["alarm_time"], "reminder": said["reminder_timed"]}, [seven], [call]),
+        ({"reminder": said["reminder"]}, [], [call, bins]),
+        ({"reminder": said["reminder_other"]}, [], [call, bins]),
+        ({"time": "", "reminder": said["reminder_day"]}, [seven, weekday], [call]),
+        ({"time": said["alarm_other"], "reminder": said["reminder_nothing"]}, [seven, weekday], []),
+        ({"reminder": said["reminder"]}, [], []),
         ({}, [], []),
-        ({"time": "7"}, [seven, weekday], [call]),
+        ({"time": said["alarm"]}, [seven, weekday], [call]),
         ({}, [seven], []),
         ({}, [], [call, bins]),
     ]

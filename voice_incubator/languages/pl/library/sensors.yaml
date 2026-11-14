@@ -1,0 +1,153 @@
+# Sensors (Polish), as the English library's sensors.yaml: asking a sensor or
+# a binary sensor by its name (Names page): "jaka jest temperatura na
+# zewnątrz", "ile prądu zużywa suszarka", "czy drzwi wejściowe są otwarte",
+# "czy w piwnicy jest mokro".
+#
+# A sensor says its value as Home Assistant has it, its unit's noun in the
+# form the number takes ("21,5 stopnia", "22 stopnie", "40 procent"), or its
+# state in words; a binary sensor says what it is in the words of its device
+# class (otwarte or zamknięte, mokro or sucho, zajęte or wolne ...), agreeing
+# with its name ("Okno jest otwarte", "Drzwi są otwarte", "Czujnik ruchu
+# wykrywa ruch"), and yes or no when asked about one of them. A name may be
+# shared by one in each room: the room said picks it, else the satellite's.
+title: Sensors
+icon: mdi:gauge
+
+commands:
+  sensor_value:
+    title: What a sensor says
+    icon: mdi:gauge
+    description: powiedzieć, co pokazuje czujnik
+    require: [[ile, jaki, jaka, jakie, jak, co, podaj, powiedz]]
+    optional: [[jest, są, wynosi, pokazuje, odczyt, poziom, zużywa, zużycie, teraz, mi]]
+    names:
+      entity: {count: 1, domains: [sensor]}
+      area: {count: 1}
+    # A room with the sensor picks it out: the one of that name there.
+    combinations: [[entity], [entity, area]]
+    response: >-
+      {%- set e = slots.entity[0] -%}
+      {%- set name = names.get(e, state_attr(e, 'friendly_name')) -%}
+      {%- set state = states(e) -%}
+      {%- set number = state | float(none) -%}
+      {%- set unit = state_attr(e, 'unit_of_measurement') -%}
+      {%- set units = {'°C': ['stopień', 'stopnie', 'stopni', 'stopnia'], '°F': ['stopień', 'stopnie', 'stopni', 'stopnia'],
+        '%': ['procent', 'procent', 'procent', 'procent'], 'W': ['wat', 'waty', 'watów', 'wata'],
+        'kW': ['kilowat', 'kilowaty', 'kilowatów', 'kilowata'],
+        'Wh': ['watogodzina', 'watogodziny', 'watogodzin', 'watogodziny'],
+        'kWh': ['kilowatogodzina', 'kilowatogodziny', 'kilowatogodzin', 'kilowatogodziny'],
+        'V': ['wolt', 'wolty', 'woltów', 'wolta'], 'A': ['amper', 'ampery', 'amperów', 'ampera'],
+        'lx': ['luks', 'luksy', 'luksów', 'luksa'],
+        'ppm': ['część na milion', 'części na milion', 'części na milion', 'części na milion'],
+        'ppb': ['część na miliard', 'części na miliard', 'części na miliard', 'części na miliard'],
+        'µg/m³': ['mikrogram na metr sześcienny', 'mikrogramy na metr sześcienny', 'mikrogramów na metr sześcienny',
+          'mikrograma na metr sześcienny'],
+        'hPa': ['hektopaskal', 'hektopaskale', 'hektopaskali', 'hektopaskala'],
+        'mbar': ['milibar', 'milibary', 'milibarów', 'milibara'],
+        'inHg': ['cal słupa rtęci', 'cale słupa rtęci', 'cali słupa rtęci', 'cala słupa rtęci'],
+        'mm': ['milimetr', 'milimetry', 'milimetrów', 'milimetra'], 'cm': ['centymetr', 'centymetry', 'centymetrów', 'centymetra'],
+        'in': ['cal', 'cale', 'cali', 'cala'],
+        'km/h': ['kilometr na godzinę', 'kilometry na godzinę', 'kilometrów na godzinę', 'kilometra na godzinę'],
+        'mph': ['mila na godzinę', 'mile na godzinę', 'mil na godzinę', 'mili na godzinę'],
+        'm/s': ['metr na sekundę', 'metry na sekundę', 'metrów na sekundę', 'metra na sekundę'],
+        'L': ['litr', 'litry', 'litrów', 'litra'], 'gal': ['galon', 'galony', 'galonów', 'galona'],
+        'm³': ['metr sześcienny', 'metry sześcienne', 'metrów sześciennych', 'metra sześciennego'],
+        'min': ['minuta', 'minuty', 'minut', 'minuty'], 'h': ['godzina', 'godziny', 'godzin', 'godziny'],
+        's': ['sekunda', 'sekundy', 'sekund', 'sekundy'], 'd': ['dzień', 'dni', 'dni', 'dnia'],
+        'dB': ['decybel', 'decybele', 'decybeli', 'decybela'], 'kg': ['kilogram', 'kilogramy', 'kilogramów', 'kilograma'],
+        'lb': ['funt', 'funty', 'funtów', 'funta'],
+        'mm/h': ['milimetr na godzinę', 'milimetry na godzinę', 'milimetrów na godzinę', 'milimetra na godzinę'],
+        'in/h': ['cal na godzinę', 'cale na godzinę', 'cali na godzinę', 'cala na godzinę']} -%}
+      {%- set days = ['w poniedziałek', 'we wtorek', 'w środę', 'w czwartek', 'w piątek', 'w sobotę', 'w niedzielę'] -%}
+      {%- set hours = ['zero', 'pierwszej', 'drugiej', 'trzeciej', 'czwartej', 'piątej', 'szóstej', 'siódmej', 'ósmej',
+        'dziewiątej', 'dziesiątej', 'jedenastej', 'dwunastej', 'trzynastej', 'czternastej', 'piętnastej', 'szesnastej',
+        'siedemnastej', 'osiemnastej', 'dziewiętnastej', 'dwudziestej', 'dwudziestej pierwszej', 'dwudziestej drugiej',
+        'dwudziestej trzeciej'] -%}
+      {%- if state in ['unavailable', 'unknown'] -%}
+      {{ name }}: teraz brak odczytu.
+      {%- elif number is not none -%}
+      {%- set n = number | round(1) -%}
+      {%- set i = n | int -%}
+      {%- set shown = (i if n == i else n) | string | replace('.', ',') -%}
+      {%- set forms = units.get(unit) -%}
+      {%- set noun = (forms[3] if n != i else forms[0] if i | abs == 1 else forms[1] if i | abs % 10 in [2, 3, 4]
+        and i | abs % 100 not in [12, 13, 14] else forms[2]) if forms else unit -%}
+      {{ name }}: {{ shown }}{{ (' ' ~ noun) if unit else '' }}.
+      {%- elif state_attr(e, 'device_class') == 'timestamp' -%}
+      {%- set t = as_local(as_datetime(state)) -%}
+      {%- set minutes = (' ' ~ (('zero ' ~ t.minute) if t.minute < 10 else t.minute)) if t.minute else '' -%}
+      {{ name }}: {{ days[t.weekday()] }} o {{ hours[t.hour] }}{{ minutes }}.
+      {%- else -%}
+      {{ name }}: {{ state | replace('_', ' ') }}.
+      {%- endif -%}
+    needs:
+      - Add names for the sensors it may ask about (Names page).
+
+  binary_sensor_state:
+    title: Is a binary sensor on
+    icon: mdi:checkbox-blank-circle-outline
+    description: sprawdzić, czy czujnik binarny jest włączony
+    require: [[czy, jest, są]]
+    optional: [[nadal, wciąż, jeszcze, teraz]]
+    names:
+      entity: {count: 1, domains: [binary_sensor]}
+      area: {count: 1}
+    lists:
+      asked: {list: binary_states}
+    combinations: [[entity, asked], [entity, area, asked]]
+    # Each device class's two states: an adjective ("otwart*", its ending
+    # agreeing with the name), else ("~") what it does; and Home Assistant's
+    # words for them, as the binary_states list has them.
+    response: >-
+      {%- set e = slots.entity[0] -%}
+      {%- set name = names.get(e, state_attr(e, 'friendly_name')) or e -%}
+      {%- set state = states(e) -%}
+      {%- set w = (name | lower).split(' ')[0] -%}
+      {%- set g = 'p' if w in ['drzwi', 'drzwiczki', 'wrota', 'okna', 'rolety', 'żaluzje'] or w[-1:] in ['y', 'i']
+        else ('f' if w[-1:] == 'a' else ('n' if w[-1:] in ['o', 'e', 'ę'] else 'm')) -%}
+      {%- set end = {'m': 'y', 'f': 'a', 'n': 'e', 'p': 'e'}[g] -%}
+      {%- set words = {'door': ['otwart*', 'zamknięt*'], 'garage_door': ['otwart*', 'zamknięt*'],
+        'window': ['otwart*', 'zamknięt*'], 'opening': ['otwart*', 'zamknięt*'], 'lock': ['odblokowan*', 'zablokowan*'],
+        'moisture': ['mokr*', 'such*'], 'motion': ['~wykrywa ruch', '~nie wykrywa ruchu'], 'occupancy': ['zajęt*', 'woln*'],
+        'presence': ['=w domu', '=poza domem'], 'plug': ['podłączon*', 'odłączon*'],
+        'battery': ['~ma słabą baterię', '~ma naładowaną baterię'], 'battery_charging': ['~ładuje się', '~nie ładuje się'],
+        'connectivity': ['połączon*', 'rozłączon*'], 'running': ['~działa', '~nie działa'],
+        'smoke': ['~wykrywa dym', '~nie wykrywa dymu'], 'gas': ['~wykrywa gaz', '~nie wykrywa gazu'],
+        'carbon_monoxide': ['~wykrywa czad', '~nie wykrywa czadu'], 'problem': ['~zgłasza problem', '~działa poprawnie'],
+        'cold': ['zimn*', '~ma normalną temperaturę'], 'heat': ['gorąc*', '~ma normalną temperaturę'],
+        'light': ['~wykrywa światło', '~nie wykrywa światła'], 'sound': ['~wykrywa dźwięk', '~nie wykrywa dźwięku'],
+        'vibration': ['~wykrywa wibracje', '~nie wykrywa wibracji'], 'tamper': ['~wykrywa manipulację', '~nie wykrywa manipulacji'],
+        'safety': ['niebezpieczn*', 'bezpieczn*'], 'update': ['~ma dostępną aktualizację', '=aktualn*']} -%}
+      {%- set keys = {'door': ['open', 'closed'], 'garage_door': ['open', 'closed'], 'window': ['open', 'closed'],
+        'opening': ['open', 'closed'], 'lock': ['unlocked', 'locked'], 'moisture': ['wet', 'dry'],
+        'motion': ['detecting motion', 'clear'], 'occupancy': ['occupied', 'clear'], 'presence': ['home', 'away'],
+        'plug': ['plugged in', 'unplugged'], 'battery': ['low', 'normal'], 'battery_charging': ['charging', 'not charging'],
+        'connectivity': ['connected', 'disconnected'], 'running': ['running', 'not running'],
+        'smoke': ['detecting smoke', 'clear'], 'gas': ['detecting gas', 'clear'],
+        'carbon_monoxide': ['detecting carbon monoxide', 'clear'], 'problem': ['reporting a problem', 'OK'],
+        'cold': ['cold', 'normal'], 'heat': ['hot', 'normal'], 'light': ['detecting light', 'dark'],
+        'sound': ['detecting sound', 'quiet'], 'vibration': ['vibrating', 'still'], 'tamper': ['tampered with', 'OK'],
+        'safety': ['unsafe', 'safe'], 'update': ['out of date', 'up to date']} -%}
+      {%- set plural = {'wykrywa': 'wykrywają', 'ładuje': 'ładują', 'działa': 'działają', 'zgłasza': 'zgłaszają', 'ma': 'mają'} -%}
+      {%- set device_class = state_attr(e, 'device_class') -%}
+      {%- set pair = words.get(device_class, ['włączon*', 'wyłączon*']) -%}
+      {%- set pair_keys = keys.get(device_class, ['on', 'off']) -%}
+      {%- set phrase = pair[0] if state == 'on' else pair[1] -%}
+      {%- set ns = namespace(said='') -%}
+      {%- if phrase[:1] == '~' -%}
+        {%- for word in phrase[1:].split(' ') -%}
+          {%- set ns.said = ns.said ~ ' ' ~ (plural.get(word, word) if g == 'p' else word) -%}
+        {%- endfor -%}
+      {%- else -%}
+        {%- set ns.said = (' są ' if g == 'p' else ' jest ') ~ phrase.lstrip('=').replace('*', end) -%}
+      {%- endif -%}
+      {%- set said = name ~ ns.said ~ '.' -%}
+      {%- if state not in ['on', 'off'] -%}
+      {{ name }}: teraz brak odczytu.
+      {%- elif slots.asked in pair_keys or slots.asked in ['on', 'off'] -%}
+      {{ 'Tak' if (slots.asked in [pair_keys[0], 'on']) == (state == 'on') else 'Nie' }}, {{ said }}
+      {%- else -%}
+      {{ said }}
+      {%- endif -%}
+    needs:
+      - Add names for the binary sensors it may ask about (Names page).

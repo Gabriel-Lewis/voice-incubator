@@ -1,0 +1,16 @@
+# The people who live here (Russian), as the English library's people.yaml
+# (People page).
+#
+# Who is speaking is who the app takes them to be: their voice, else whose
+# wake word it was, else the only person -- as "мой" means (voice_incubator/
+# people.py, speaking).
+title: People
+icon: mdi:account
+
+commands:
+  who_am_i:
+    title: Who am I
+    icon: mdi:account-voice
+    description: сказать, кто говорит
+    examples: ["кто я", "кто [сейчас] говорит", "ты знаешь кто я", "как меня зовут"]
+    response: "{% if speaker.name %}Вы — {{ speaker.name }}.{% else %}Извините, я не знаю, кто говорит.{% endif %}"

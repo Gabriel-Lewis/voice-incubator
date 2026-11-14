@@ -9,7 +9,7 @@ import numpy as np
 import pytest
 
 from voice_incubator import languages
-from voice_incubator.piper_voices import catalog, synthesis, voices
+from voice_incubator.piper_voices import catalog, regions, synthesis, voices
 from voice_incubator.tts import Speech
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -33,6 +33,23 @@ def test_the_catalog_has_english_voices_to_download(tmp_path):
     vctk = catalog()["en_GB-vctk-medium"]
     assert vctk.sample(vctk.speakers[3]).endswith("samples/speaker_3.mp3")
     assert kristin.model(tmp_path) == tmp_path / "en_US-kristin-medium.onnx"
+
+
+@pytest.mark.parametrize("code", languages.codes())
+def test_the_voices_are_the_apps_languages(code):
+    """The voices the app may speak with are its language's -- its own among
+    them -- each region named for the web UI; another's is no voice."""
+    pack = languages.use(code)
+    try:
+        here = catalog()
+        assert pack.piper.removesuffix(".onnx") in here
+        assert here and {v.language for v in here.values()} == set(pack.piper_languages)
+        assert ("en_US-kristin-medium" in here) == (code == "en")
+        names = regions(pack.piper_languages)
+        assert list(names) == list(pack.piper_languages) and all(name != c for c, name in names.items())
+    finally:
+        languages.use(languages.DEFAULT)
+    assert regions(("en_US", "de_DE")) == {"en_US": "US English", "de_DE": "German (Germany)"}
 
 
 def test_settings_as_piper_takes_them():

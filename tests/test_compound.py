@@ -5,6 +5,7 @@ command alone borrowing from the other, both or neither -- typed, and said
 
 from __future__ import annotations
 
+from dataclasses import replace
 from pathlib import Path
 
 import numpy as np
@@ -63,9 +64,10 @@ def test_what_both_say():
     assert compound.alone("cancel all the timers") == "Ask me to cancel all the timers on its own."
 
 
-def test_only_a_language_that_hears_them():
+def test_only_a_language_that_hears_them(monkeypatch, tmp_path):
     assert compound.joiners() == ("and then", "and", "then")
-    languages.use("de")
+    # A pack without compound.py: one sentence is one command.
+    monkeypatch.setattr(languages, "_current", replace(languages.load("de"), directory=tmp_path))
     assert compound.joiners() == () and not compound.splits("mach das licht an und dann aus".split())
 
 

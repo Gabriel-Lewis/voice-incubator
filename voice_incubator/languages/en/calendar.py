@@ -252,6 +252,27 @@ def what(text: str) -> str:
 
 # ---------------------------------------------------------------- speaking
 
+EXAMPLES = {
+    "alarm_time": "7:30 tomorrow",
+    "alarm": "7",
+    "alarm_other": "8",
+    "reminder": "to call mom",
+    "reminder_timed": "to call mom at 5 pm",
+    "reminder_day": "to call mom tomorrow",
+    "reminder_other": "to feed the cat",
+    "reminder_nothing": "to",
+    "call": "Call mom",
+    "bins": "Take out the bins",
+}
+"""What the web UI's examples of what alarms and reminders say are made
+from (alarms.outcome_examples), as speech-to-text writes them: an alarm's
+time (``alarm_time``: one set; ``alarm``: the 7 o'clock one cancelled;
+``alarm_other``: one there is none at), a reminder (``reminder``: one there
+is; ``reminder_timed``: one set with a time; ``reminder_day``: one cancelled
+by its day; ``reminder_other``: one there is none of; ``reminder_nothing``:
+what is said when what to be reminded of is missing), and two reminders'
+titles on the calendar (``call``, the 5 pm one; ``bins``)."""
+
 ALARM_WHEN = "What time should the alarm be for?"
 REMINDER_WHEN = "When should I remind you?"
 REMINDER_WHAT = "What should I remind you of?"

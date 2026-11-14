@@ -1,7 +1,9 @@
 # The value lists every home has in Polish (Pack.lists): a command's value
 # slot uses one by name ({list: colors}). A home's own list by the same name,
 # in Polish, takes its place (the Names page). Values are what Home Assistant
-# gets: CSS color names, cover device classes, HVAC modes.
+# gets: CSS color names, cover device classes, HVAC modes. Each is said in
+# the forms a sentence takes ("ustaw światło na niebiesko", "niebieskie
+# światło"), none with a filler word ("w", "na", "do") of its own.
 colors:
   red: [czerwony, czerwona, czerwone, czerwono, czerwień]
   orange: [pomarańczowy, pomarańczowa, pomarańczowe, pomarańczowo]
@@ -16,6 +18,11 @@ colors:
 on_off:
   "on": [włączony, włączona, włączone, zapalony, zapalona, zapalone]
   "off": [wyłączony, wyłączona, wyłączone, zgaszony, zgaszona, zgaszone]
+media_kinds:
+  # What plays (Music library): "muzyka" is Music Assistant's players,
+  # "telewizor" the media players whose device class is tv.
+  music: [muzyka, muzykę, muzyki, muzyce]
+  tv: [telewizor, telewizora, telewizorze, telewizja, telewizję, telewizji, tv]
 cover_classes:
   awning: [markiza, markizę, markizy]
   blind: [żaluzja, żaluzję, żaluzje, żaluzji]
@@ -32,11 +39,74 @@ open_closed:
 locked_unlocked:
   locked: [zablokowane, zablokowana, zablokowany, zamknięte na klucz, zamknięta na klucz, zamknięty na klucz, na klucz, zaryglowane, zaryglowana, zaryglowany]
   unlocked: [odblokowane, odblokowana, odblokowany, niezablokowane, niezablokowana, niezablokowany, odryglowane]
+color_temperatures:
+  # What the white is called, in kelvin; "światło" is the command's own word
+  # ("ustaw ciepłe światło").
+  "2700": [ciepła biel, ciepłą biel, ciepły, ciepła, ciepłe, ciepło]
+  "3000": [miękka biel, miękką biel, miękki, miękka, miękkie]
+  "4000": [neutralna biel, neutralną biel, neutralny, neutralna, neutralne, naturalna biel, naturalną biel, naturalne]
+  "5000": [chłodna biel, chłodną biel, zimna biel, zimną biel, chłodny, chłodna, chłodne, zimne]
+  "6500": [dzienne, dzienny, dzienna, dziennego]
+forecast_days:
+  today: [dzisiaj, dziś]
+  tomorrow: [jutro]
+  day_after_tomorrow: [pojutrze]
+  monday: [poniedziałek, poniedziałku]
+  tuesday: [wtorek, wtorku]
+  wednesday: [środa, środę, środy]
+  thursday: [czwartek, czwartku]
+  friday: [piątek, piątku]
+  saturday: [sobota, sobotę, soboty]
+  sunday: [niedziela, niedzielę, niedzieli]
+  weekend: [weekend, weekendu, weekendzie]
+weather_kinds:
+  rain: [deszcz, deszczu, deszczowo, padać, pada, parasol, parasola, parasolkę, parasolki, mokro]
+  snow: [śnieg, śniegu, śnieżyć, śnieżnie, sypać, padać śnieg, padał śnieg]
+fan_modes:
+  auto: [automatyczny, automatycznie, auto, tryb automatyczny]
+  "on": [włączony, włącz, zawsze włączony]
+  "off": [wyłączony, wyłącz]
+  low: [niski, niski bieg, niskie obroty]
+  medium: [średni, średni bieg, średnie obroty]
+  high: [wysoki, wysoki bieg, wysokie obroty]
+  circulate: [cyrkulacja, cyrkulację, cyrkulacji, obieg]
+  # Both at once, where a thermostat's modes are ("on_low", "auto_high").
+  auto_low: [automatyczny niski]
+  auto_medium: [automatyczny średni]
+  auto_high: [automatyczny wysoki]
+  on_low: [włączony niski]
+  on_medium: [włączony średni]
+  on_high: [włączony wysoki]
+binary_states:
+  # What a binary sensor is asked to be ("czy drzwi wejściowe są otwarte"):
+  # the words for each of its device classes' two states (Sensors library
+  # group). Not locked or unlocked: "czy drzwi są zamknięte na klucz" is the
+  # lock's (Covers and locks), which asks a binary sensor of the lock class
+  # too.
+  "on": [włączony, włączona, włączone]
+  "off": [wyłączony, wyłączona, wyłączone]
+  open: [otwarty, otwarta, otwarte]
+  closed: [zamknięty, zamknięta, zamknięte]
+  wet: [mokry, mokra, mokre, mokro, wilgotny, wilgotna, wilgotne, przecieka, cieknie]
+  dry: [suchy, sucha, suche, sucho]
+  occupied: [zajęty, zajęta, zajęte]
+  clear: [wolny, wolna, wolne, pusty, pusta, puste]
+  home: [w domu]
+  away: [poza domem, nieobecny, nieobecna, nieobecne]
+  connected: [połączony, połączona, połączone, online]
+  disconnected: [rozłączony, rozłączona, rozłączone, offline]
+  running: [działa, pracuje, uruchomiony, uruchomiona, uruchomione]
+  charging: [ładuje się, ładowany, ładowana, ładowane]
+  plugged in: [podłączony, podłączona, podłączone]
+  unplugged: [odłączony, odłączona, odłączone]
+  low: [niski, niska, niskie, rozładowany, rozładowana, rozładowane]
+  cold: [zimny, zimna, zimne, zimno]
+  hot: [gorący, gorąca, gorące, gorąco]
 hvac_modes:
   "off": [wyłączone, wyłączony]
   heat: [grzanie, ogrzewanie, grzania]
-  cool: [chłodzenie, chłodzenia, klimatyzacja]
+  cool: [chłodzenie, chłodzenia, klimatyzacja, klimatyzację]
   heat_cool: [grzanie i chłodzenie]
-  auto: [automatyczny, auto, automat]
+  auto: [automatyczny, auto, automat, tryb automatyczny]
   dry: [osuszanie, osuszania]
-  fan_only: [wentylator, wentylacja]
+  fan_only: [wentylacja, wentylację, sam wentylator, tylko wentylator]

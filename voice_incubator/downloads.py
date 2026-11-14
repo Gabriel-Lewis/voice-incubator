@@ -1,9 +1,12 @@
-"""The models the app downloads the first time it starts: Parakeet (English
-speech, with its CTC head beside it: adapt_ctc.hybrid), the CTC model's
-tokens, EmbeddingGemma 2 (hints by meaning) and GLiNER (the command
-fallback) -- about 470 MB, from rhasspy/voice-incubator-models and
-onnx-community/embeddinggemma-2-ONNX, each file checked against its SHA-256 --
-and the Piper voices in use (voice_incubator/piper_voices.py).
+"""The models the app downloads the first time it starts, for the language it
+runs in (``wanted``): its speech model -- Parakeet in English, NVIDIA's
+FastConformer hybrid in another language, each a transducer with its CTC
+head beside it (adapt_ctc.hybrid) -- and the CTC model's tokens,
+EmbeddingGemma 2 (hints by meaning) and, in a language it understands,
+GLiNER (the command fallback) -- about 470 MB, from
+rhasspy/voice-incubator-models and onnx-community/embeddinggemma-2-ONNX, each
+file checked against its SHA-256 -- and the Piper voices in use
+(voice_incubator/piper_voices.py).
 
 As an app they go in its data folder (``/data/models``, kept across updates),
 which the image's models/ links each of them to (``link``): the code finds
@@ -44,7 +47,7 @@ from aiohttp import web
 _LOGGER = logging.getLogger(__name__)
 
 ROOT = Path(__file__).resolve().parent.parent
-MODELS_REPO = "https://huggingface.co/rhasspy/voice-incubator-models/resolve/de2ae0069e6e8f6883d057b300ee285e5e3be87f"
+MODELS_REPO = "https://huggingface.co/rhasspy/voice-incubator-models/resolve/e359089e2dfe430415b24410a089fdcf36fd5bf9"
 EMBEDDING_REPO = (
     "https://huggingface.co/onnx-community/embeddinggemma-2-ONNX/resolve/daa72c51243991dfcaf9f9137d2c573d8f7790c0"
 )
@@ -87,48 +90,135 @@ class Model:
 
 PARAKEET = f"{MODELS_REPO}/parakeet-tdt_ctc-110m-en-int8"
 GLINER = f"{MODELS_REPO}/gliner2.5-small-v1-onnx"
-MODELS = (
-    Model("parakeet-tdt-int8", (
-        File("encoder.onnx", f"{PARAKEET}/encoder.onnx",
-             "8e19f44028ee520c9734b0cd85582a1b2aab992e4fcafac0dbd835fba4ed445c", 171777188),
-        File("decoder.onnx", f"{PARAKEET}/decoder.onnx",
-             "3da156bde41a04c94ef783e0bd92928e9974e08645b976a22d0c3e1063510249", 15753086),
-        File("joiner.onnx", f"{PARAKEET}/joiner.onnx",
-             "b603765c0724a0768c378a23326dabbeb9cfea932d260e4fcc14384fa5fd5aff", 5596854),
-        File("tokens.txt", f"{PARAKEET}/tokens.txt",
-             "450e56bd2f036fe5b6aa821865838cc5aa9d8b0106134ce9a9ba0664abe6cd10", 9953),
-        File("ctc_head.npz", f"{PARAKEET}/ctc_head.npz",
-             "5459bf21d35af241ac604ef0007805f2b0ddc91ef6f3c2f04eb1ab5851d9cda8", 2104188),
-    )),
-    # The CTC model's own folder: its tokens and its name are all the shared
-    # encoder needs of it (adapt_ctc.hybrid.has_shared_model).
-    Model("speech-to-phrase/stt_en_parakeet_tdt_ctc_110m-int8", (
-        File("tokens.txt", f"{PARAKEET}/tokens.txt",
-             "450e56bd2f036fe5b6aa821865838cc5aa9d8b0106134ce9a9ba0664abe6cd10", 9953),
-    )),
-    Model("embeddinggemma-2", (
-        File("tokenizer.json", f"{EMBEDDING_REPO}/tokenizer.json",
-             "4d777ef5bdc1aa36227abdfb77c3e49e7b9c892d16e1b6bda41c393504828be4", 32170510),
-        File("onnx/model_q4.onnx", f"{EMBEDDING_REPO}/onnx/model_q4.onnx",
-             "f9eeba97acddf139b8ee2ddf04bc30dceafa88de93fadf74d7644e0d61a477a9", 490742),
-        File("onnx/model_q4.onnx_data", f"{EMBEDDING_REPO}/onnx/model_q4.onnx_data",
-             "c3975f2d1ab7a1878ae31a7d7a9b7804a827aff3800b60dfceafce21cac3df49", 174028800),
-    )),
-    Model("gliner2.5-small-v1-onnx", (
-        File("boundary_a.onnx", f"{GLINER}/boundary_a.onnx",
-             "195407f84cd9d2ff4df3f31c4e75e54c44d9667732874151e0fb27a1e6aabc8b", 2804235),
-        File("boundary_b.onnx", f"{GLINER}/boundary_b.onnx",
-             "02608968667810944d75bf106d219bbb02962c25cbb6549d1a36afcc1769d020", 804090),
-        File("classifier.npz", f"{GLINER}/classifier.npz",
-             "3cbf33fc7459211f34906fafad06d7edf1ef787040040efd0689bf5c947fae34", 1186762),
-        File("encoder-w8.onnx", f"{GLINER}/encoder-w8.onnx",
-             "959bda1f5d0aeb0b9370eef0d2c1351170190a3b8710edbb03f0a51d4d0dcdfd", 68428247),
-        File("gliner2_onnx.json", f"{GLINER}/gliner2_onnx.json",
-             "c39edc1d8e90fd65d0cca316ac514a1546ab2a4edd954fb295a431894bf2eb0e", 690),
-        File("tokenizer.json", f"{GLINER}/tokenizer.json",
-             "cbc8ae6037812709c9c26f2a160f8dc48b0440bcb79c8141804259ae2d6adac3", 8341713),
-    )),
-)
+
+
+def _hybrid(name: str, files: dict[str, tuple[str, int]]) -> tuple[Model, ...]:
+    """A language's FastConformer hybrid (``stt_<name>_fastconformer_hybrid_large_pc``),
+    laid out as Parakeet: the transducer with its CTC head beside it, and the
+    CTC model's folder with its tokens (its pack's ``transducer`` and ``ctc``,
+    their int8 builds). ``files``: each one's SHA-256 and size."""
+    model = f"stt_{name}_fastconformer_hybrid_large_pc"
+    base = f"{MODELS_REPO}/{model}-int8"
+    return (
+        Model(f"{model}-transducer-int8", tuple(File(f, f"{base}/{f}", digest, size) for f, (digest, size) in files.items())),
+        Model(f"speech-to-phrase/{model}-int8", (File("tokens.txt", f"{base}/tokens.txt", *files["tokens.txt"]),)),
+    )
+
+
+SPEECH: dict[str, tuple[Model, ...]] = {
+    "en": (
+        Model("parakeet-tdt-int8", (
+            File("encoder.onnx", f"{PARAKEET}/encoder.onnx",
+                 "8e19f44028ee520c9734b0cd85582a1b2aab992e4fcafac0dbd835fba4ed445c", 171777188),
+            File("decoder.onnx", f"{PARAKEET}/decoder.onnx",
+                 "3da156bde41a04c94ef783e0bd92928e9974e08645b976a22d0c3e1063510249", 15753086),
+            File("joiner.onnx", f"{PARAKEET}/joiner.onnx",
+                 "b603765c0724a0768c378a23326dabbeb9cfea932d260e4fcc14384fa5fd5aff", 5596854),
+            File("tokens.txt", f"{PARAKEET}/tokens.txt",
+                 "450e56bd2f036fe5b6aa821865838cc5aa9d8b0106134ce9a9ba0664abe6cd10", 9953),
+            File("ctc_head.npz", f"{PARAKEET}/ctc_head.npz",
+                 "5459bf21d35af241ac604ef0007805f2b0ddc91ef6f3c2f04eb1ab5851d9cda8", 2104188),
+        )),
+        # The CTC model's own folder: its tokens and its name are all the shared
+        # encoder needs of it (adapt_ctc.hybrid.has_shared_model).
+        Model("speech-to-phrase/stt_en_parakeet_tdt_ctc_110m-int8", (
+            File("tokens.txt", f"{PARAKEET}/tokens.txt",
+                 "450e56bd2f036fe5b6aa821865838cc5aa9d8b0106134ce9a9ba0664abe6cd10", 9953),
+        )),
+    ),
+    "de": _hybrid("de", {
+        "encoder.onnx": ("4d24052d276cf53690401a5d3d57fe32b0088a9a2030bee46196b3e7738fef14", 171687137),
+        "decoder.onnx": ("3d48065d03492955e95ea7b6244dd5ba83d299822a155e1efd96a89ad221d1a3", 15753086),
+        "joiner.onnx": ("bfcadc4433b18395cb9852dcb4951469fffacd4fe0fe9f0b657669036b1ed93c", 5584034),
+        "tokens.txt": ("abb1136142604d6d1766ad5060bd4f4b1048d7a096cd094b2d40eec3e666be9f", 10686),
+        "ctc_head.npz": ("d1642d08e3e6f6f6ec0d4a89ddeebe72f2ff1e17c0eb1b8c3465b00d6d1ec234", 2104220),
+    }),
+    "es": _hybrid("es", {
+        "encoder.onnx": ("cacce147e45f24a1994f792b09af34716019308e8570d991c29b4162ce20bce4", 171687137),
+        "decoder.onnx": ("eabec959139190659e26dc8032b57a32c5c657fbd9e44b4863b87ab34187f224", 15753086),
+        "joiner.onnx": ("401fc7e46c82e856dbda4fcd2b213e83ea51e6b0e612e9d4d167cd3148928749", 5584034),
+        "tokens.txt": ("556118db7946e6636018ef59c9e0537b05660b0398e995d60825081e77625e6a", 10776),
+        "ctc_head.npz": ("5d408f7a376a179e9bba5707586c6f1502c70150c3bec8580a4262c2f7dc79ce", 2104220),
+    }),
+    "fr": _hybrid("fr", {
+        "encoder.onnx": ("fdc1efa97344d4bb5d71a57ae6940e9b0ce8531feee7e3a8c7b177793e5f9cab", 171687137),
+        "decoder.onnx": ("e3c805b794e1d60dc5a9820c2ec44f72365be00ef9bf65926d7fb2816cdda239", 15753086),
+        "joiner.onnx": ("eaa89c1227fc17b12071cc6301bb3be454812d280eb983c5b0f2b9d65470da15", 5584034),
+        "tokens.txt": ("1b0a63466e3847115896e795fd64160e689c68efb63c0b648f7a85d33a9a0c1e", 10943),
+        "ctc_head.npz": ("777b1ddc9ab51043170eda1007b400a36b4d4b7919e065b4a6328a87ce63feda", 2104220),
+    }),
+    "it": _hybrid("it", {
+        "encoder.onnx": ("c0c8cbc1d2eac3dcb4cdd27f3e46d3bb76665452f67b454ef8f8e5a0fe84ad81", 171686446),
+        "decoder.onnx": ("434920e5bbd263ce17eca281b37ed614ff747b88961577e5cbcb5dede430fd91", 14442364),
+        "joiner.onnx": ("4eec1efa62712e7f181c69a70781a8d4c538aed499afff7ce63e13ddd90380bd", 4271264),
+        "tokens.txt": ("955c3b82d9b031aca2447c367975d54ae1b793994ffe4ac9ecc8afd7ccdf87b2", 4365),
+        "ctc_head.npz": ("8f89a521c7709095669e686a635a4118ed296497dd344ac08075c3d78c9b19ac", 1053596),
+    }),
+    "nl": _hybrid("nl", {
+        "encoder.onnx": ("812904e67341843771a8ca46bab966aa869c483cb43086a4ba49c4abbfcafc1a", 171687137),
+        "decoder.onnx": ("db88a603ed785489bb65fce6cff1c576a8350f1ec6e502c77b4f207d9ebb820e", 15753086),
+        "joiner.onnx": ("839c12de0ba3f730456f11dc24f745cf441362f579d4bef20738771b6cc2d682", 5584034),
+        "tokens.txt": ("ae620aa97aa0c88db65cea95c7f9e087a1cb249b467de8fccd37f94ac284b521", 10807),
+        "ctc_head.npz": ("b0fd89a8b8fcf8df598e71ffb4b139fae683443e8f35092249cf44f8b191cd0a", 2104220),
+    }),
+    "pl": _hybrid("pl", {
+        "encoder.onnx": ("6f04cc9bfafcb7bd30584a6cdd5a3b0983c60777d0dead262ac7a9020c396545", 171687137),
+        "decoder.onnx": ("7acf8676f0eca708149b08fb28fe6b39707cdcf7ea3ae9b297b292ad915d91d7", 15753086),
+        "joiner.onnx": ("a53c53a406b86b692d8f3694142f8e7a75f7cdd0540c8e8f66b32a8d8824b4f8", 5584034),
+        "tokens.txt": ("a9a98e97486b126c6313c680a9d1c753613a98b35f96569da2ecab0c096ff79d", 11959),
+        "ctc_head.npz": ("1d362247ab01b5cac010d3b35f4642235dd7cb4a1e9cb29cba0832027f043006", 2104220),
+    }),
+    "ru": _hybrid("ru", {
+        "encoder.onnx": ("79a96d1fd2c58ff4633c1812a129e23aa4ce338c8eb525d94c02439a743daf28", 171687137),
+        "decoder.onnx": ("fa7cae62fc81627b398fecff6a388c6386718f6e3cd518429eba44576cd8a95b", 15753086),
+        "joiner.onnx": ("b97c306964efd27551844eeb9154bb8bf03df41e3a6f115514abb1d389639a0c", 5584034),
+        "tokens.txt": ("17a75016774e067fab164a0e831e32df749a65f7cec03470e78bbe410e84f0e1", 14791),
+        "ctc_head.npz": ("9861d5a3ec06ca2124a90cb5d5015d4265d572d51a0bcb6e4f8146586ce70871", 2104220),
+    }),
+    "uk": _hybrid("ua", {
+        "encoder.onnx": ("3886d435c962f9aa00a553dfe04ca72fde352a56671ea552a656317ce0dfdc5d", 171687136),
+        "decoder.onnx": ("27dbd7c6998c276f2ff0a8d46e3a559cb405ceeae01b5fc2a0a4478c3f13e0d5", 14442364),
+        "joiner.onnx": ("7e0ede04b943da87d99dd9c112d16ffe3cce46c5965367e23eae9674a86a439c", 4271264),
+        "tokens.txt": ("88d18ce24274bf277217363a7a50b3fbc6f3a991367b06ccb29e01dedec6b80a", 5544),
+        "ctc_head.npz": ("2be4bc82c1f9639bc6980f164f0ff3d5d1962eeb9b65c4eb678144cecc13634e", 1053596),
+    }),
+}
+"""Each language's speech models, by its code (voice_incubator/languages)."""
+
+EMBEDDING = Model("embeddinggemma-2", (
+    File("tokenizer.json", f"{EMBEDDING_REPO}/tokenizer.json",
+         "4d777ef5bdc1aa36227abdfb77c3e49e7b9c892d16e1b6bda41c393504828be4", 32170510),
+    File("onnx/model_q4.onnx", f"{EMBEDDING_REPO}/onnx/model_q4.onnx",
+         "f9eeba97acddf139b8ee2ddf04bc30dceafa88de93fadf74d7644e0d61a477a9", 490742),
+    File("onnx/model_q4.onnx_data", f"{EMBEDDING_REPO}/onnx/model_q4.onnx_data",
+         "c3975f2d1ab7a1878ae31a7d7a9b7804a827aff3800b60dfceafce21cac3df49", 174028800),
+))
+GLINER_MODEL = Model("gliner2.5-small-v1-onnx", (
+    File("boundary_a.onnx", f"{GLINER}/boundary_a.onnx",
+         "195407f84cd9d2ff4df3f31c4e75e54c44d9667732874151e0fb27a1e6aabc8b", 2804235),
+    File("boundary_b.onnx", f"{GLINER}/boundary_b.onnx",
+         "02608968667810944d75bf106d219bbb02962c25cbb6549d1a36afcc1769d020", 804090),
+    File("classifier.npz", f"{GLINER}/classifier.npz",
+         "3cbf33fc7459211f34906fafad06d7edf1ef787040040efd0689bf5c947fae34", 1186762),
+    File("encoder-w8.onnx", f"{GLINER}/encoder-w8.onnx",
+         "959bda1f5d0aeb0b9370eef0d2c1351170190a3b8710edbb03f0a51d4d0dcdfd", 68428247),
+    File("gliner2_onnx.json", f"{GLINER}/gliner2_onnx.json",
+         "c39edc1d8e90fd65d0cca316ac514a1546ab2a4edd954fb295a431894bf2eb0e", 690),
+    File("tokenizer.json", f"{GLINER}/tokenizer.json",
+         "cbc8ae6037812709c9c26f2a160f8dc48b0440bcb79c8141804259ae2d6adac3", 8341713),
+))
+
+
+def wanted(language: str = "en", gliner: bool = True) -> tuple[Model, ...]:
+    """What the app downloads to run in ``language``: its speech models,
+    EmbeddingGemma 2, and GLiNER when it understands the language (its pack's
+    ``gliner``)."""
+    return (*SPEECH.get(language, ()), EMBEDDING, *((GLINER_MODEL,) if gliner else ()))
+
+
+MODELS = tuple({model.folder: model for language in SPEECH for model in wanted(language)}.values())
+"""Every language's: the folders the image links to where the app downloads
+them (``link``)."""
 
 
 WAKE = f"{MODELS_REPO}/micro-wake-word"
@@ -238,12 +328,13 @@ def _fetch_file(file: File, path: Path, tries: int = 3) -> None:
             time.sleep(5 * attempt)
 
 
-def missing(models: Path) -> list[tuple[Path, File]]:
-    """What isn't under ``models`` yet of the models linked to where the app
-    downloads them (``link``), each where it goes. A working copy's models/
-    links none: it has its own."""
+def missing(models: Path, language: str = "en", gliner: bool = True) -> list[tuple[Path, File]]:
+    """What isn't under ``models`` yet of the models the app downloads to run
+    in ``language`` (``wanted``) that are linked to where it downloads them
+    (``link``), each where it goes. A working copy's models/ links none: it
+    has its own."""
     out = []
-    for model in MODELS:
+    for model in wanted(language, gliner):
         if not (models / model.folder).is_symlink():
             continue
         for file in model.files:

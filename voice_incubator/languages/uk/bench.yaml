@@ -2,7 +2,9 @@
 # for scripts/bench_language.py (spoken) and tests/test_languages.py (typed).
 # The home: these names, the devices in these rooms, a satellite in the
 # кабінет. Numbers are written as said, for text-to-speech; names are heard in
-# their cases ("у вітальні", "на першому поверсі", "кухонну колонку").
+# their cases ("у вітальні", "на першому поверсі", "кухонну колонку"). An
+# alarm's or reminder's time is compared by when the calendar reads it, on a
+# Wednesday afternoon (calendar.py); one that reads as no time, by its words.
 names:
   areas:
     kukhnia: Кухня
@@ -21,6 +23,8 @@ names:
     climate.termostat: Термостат
     cover.mansardne_vikno: Мансардне вікно
     lock.vkhidni_dveri: Вхідні двері
+    sensor.temperatura_nadvori: Температура надворі
+    binary_sensor.balkonni_dveri: Балконні двері
 rooms:
   fan.ventyliator: spalnia
   media_player.kukhnia: kukhnia
@@ -54,6 +58,10 @@ sentences:
   - ["На кухні постав класичну музику.", play_music_place, {area: [kukhnia], query: класичну музику}, "a place, then free text"]
   - ["Постав класичну музику на кухні.", play_music_place, {area: [kukhnia], query: класичну музику}, "free text, then a place declined"]
   - ["Постав музику на паузу.", pause_music_here, {}, "music"]
+  - ["Постав телевізор на паузу.", pause_music_here, {kind: tv}, "the TV, by its kind"]
+  - ["Зроби музику на кухні тихіше.", volume_down_place, {area: [kukhnia], kind: music}, "the music, a place"]
+  - ["Увімкни мій плейлист.", play_my_playlist, {}, "the speaker's own playlist"]
+  - ["Увімкни мою музику.", play_my_playlist, {}, "not music called мою музику"]
   - ["Встанови гучність на тридцять відсотків.", set_volume_here, {percentage: 30}, "music, a number"]
   - ["Що грає на кухні?", whats_playing_place, {area: [kukhnia]}, "music, a place"]
   - ["Перенеси музику на кухонну колонку.", move_music_device, {entity: [media_player.kukhnia]}, "music, a device declined"]
@@ -70,3 +78,107 @@ sentences:
   - ["Скасуй таймер.", cancel_timer, {}, "a timer"]
   - ["Скільки часу залишилось на таймері?", timer_status, {}, "a timer question"]
   - ["Забудь.", never_mind, {}, "an example sentence"]
+
+  # Climate: the home's thermostat (Settings) or one by name.
+  - ["Встанови температуру на двадцять один градус.", set_temperature_here, {temperature: 21}, "the thermostat, градус after 21"]
+  - ["Яка температура вдома?", thermostat, {}, "asking the thermostat"]
+  - ["На скільки налаштований термостат?", thermostat, {}, "asking the thermostat"]
+  - ["Зроби тепліше.", heat_up, {}, "warmer"]
+  - ["Підвищ температуру.", heat_up, {}, "warmer"]
+  - ["Знизь температуру.", heat_down, {}, "cooler"]
+  - ["Зроби прохолодніше.", heat_down, {}, "cooler"]
+  - ["У якому режимі термостат?", thermostat_mode, {}, "its mode"]
+  - ["Переведи термостат на обігрів.", set_thermostat_mode, {mode: heat}, "a mode"]
+  - ["Постав термостат у режим охолодження.", set_thermostat_mode, {mode: cool}, "a mode in the genitive"]
+  - ["Який режим вентилятора термостата?", thermostat_fan, {}, "its fan"]
+  - ["Постав вентилятор термостата на авто.", set_thermostat_fan, {mode: auto}, "a fan mode"]
+
+  # Lights: a step brighter or dimmer, the white's warmth.
+  - ["Зроби світло яскравіше.", brighter_here, {}, "brighter"]
+  - ["Яскравіше.", brighter_here, {}, "one word"]
+  - ["Зроби світло на кухні яскравіше.", brighter_place, {area: [kukhnia]}, "brighter, a place"]
+  - ["Приглуши світло.", dimmer_here, {}, "dimmer"]
+  - ["Приглуши настільну лампу.", dimmer_device, {entity: [light.nastilna_lampa]}, "dimmer, a light declined"]
+  - ["Зроби світло теплим.", light_temperature_here, {color_temperature: "2700"}, "a white in the instrumental"]
+  - ["Зроби настільну лампу холодним білим.", light_temperature_device, {entity: [light.nastilna_lampa], color_temperature: "5000"}, "a white, a light"]
+
+  # Covers to a position.
+  - ["Відкрий ролети на п'ятдесят відсотків.", cover_position_here, {device_class: shutter, percentage: 50}, "a position"]
+  - ["Встанови штори у вітальні на тридцять відсотків.", cover_position_place, {area: [vitalnia], device_class: curtain, percentage: 30}, "a position, a place"]
+  - ["Встанови мансардне вікно на двадцять відсотків.", cover_position_device, {entity: [cover.mansardne_vikno], percentage: 20}, "a position, a cover"]
+
+  # Sensors.
+  - ["Яка температура надворі?", sensor_value, {entity: [sensor.temperatura_nadvori]}, "a sensor by name"]
+  - ["Чи відчинені балконні двері?", binary_sensor_state, {entity: [binary_sensor.balkonni_dveri], asked: open}, "a binary sensor"]
+
+  # Weather: now, a day, the week, rain or snow.
+  - ["Яка зараз погода?", weather, {}, "now"]
+  - ["Яка погода буде завтра?", weather_day, {day: tomorrow}, "a day"]
+  - ["Яка погода на вихідних?", weather_day, {day: weekend}, "the weekend"]
+  - ["Який прогноз на тиждень?", weather_week, {}, "the week"]
+  - ["Чи буде завтра дощ?", will_it_rain, {what: rain, day: tomorrow}, "rain, a day"]
+  - ["Чи піде сніг у суботу?", will_it_rain, {what: snow, day: saturday}, "snow, a weekday"]
+  - ["Чи потрібна парасолька?", will_it_rain, {}, "an example sentence"]
+
+  # Lists.
+  - ["Видали молоко зі списку покупок.", shopping_list_remove, {item: молоко}, "off the list"]
+  - ["Викресли хліб зі списку покупок.", shopping_list_check, {item: хліб}, "checked off"]
+  - ["Відміть молоко у списку покупок.", shopping_list_check, {item: молоко}, "checked off"]
+  - ["Що в списку покупок?", shopping_list_items, {}, "what's on it"]
+  - ["Додай прання до списку справ.", todo_add, {item: прання}, "the to-do list"]
+  - ["Видали прання зі списку справ.", todo_remove, {item: прання}, "off the to-do list"]
+  - ["Відміть прання у списку справ.", todo_check, {item: прання}, "checked off"]
+  - ["Що в списку справ?", todo_items, {}, "what's on it"]
+  - ["Додай хліб до мого списку справ.", todo_add_mine, {item: хліб}, "my own"]
+  - ["Видали хліб з мого списку справ.", todo_remove_mine, {item: хліб}, "off my own"]
+  - ["Відміть хліб у моєму списку справ.", todo_check_mine, {item: хліб}, "checked off my own"]
+  - ["Що в моєму списку справ?", todo_items_mine, {}, "what's on my own"]
+
+  # The satellites, and people.
+  - ["Оголоси, що вечеря готова.", announce, {message: вечеря готова}, "an announcement"]
+  - ["Оголоси на кухні, що вечеря готова.", announce, {area: [kukhnia], message: вечеря готова}, "an announcement, a place"]
+  - ["Оголоси, що моя мама приїхала.", announce, {message: моя мама приїхала}, "a possessive kept at the message's start"]
+  - ["З'єднай з кухнею.", intercom, {area: [kukhnia]}, "an area in the instrumental"]
+  - ["Подзвони на кухню.", intercom, {area: [kukhnia]}, "an area in the accusative"]
+  - ["Говори голосніше.", own_volume_up, {}, "the satellite's own"]
+  - ["Говори тихіше.", own_volume_down, {}, "the satellite's own"]
+  - ["Встанови свою гучність на п'ятдесят відсотків.", own_volume_set, {percentage: 50}, "the satellite's own, a number"]
+  - ["Хто я?", who_am_i, {}, "an example sentence"]
+
+  # Alarms, on the calendar: a time and a day, repeating, from now.
+  - ["Постав будильник на сьому ранку завтра.", set_alarm, {time: сьому ранку завтра}, "time, then the day"]
+  - ["Постав будильник на сьому тридцять.", set_alarm, {time: сьому тридцять}, "the next 7:30 to come"]
+  - ["Розбуди мене о шостій п'ятнадцять завтра вранці.", set_alarm, {time: шостій п'ятнадцять завтра вранці}, "wake me up"]
+  - ["Постав будильник на пів на сьому завтра.", set_alarm, {time: пів на сьому завтра}, "half to the hour"]
+  - ["Постав будильник за чверть сьома завтра.", set_alarm, {time: за чверть сьома завтра}, "a quarter to"]
+  - ["Постав будильник по буднях на шосту сорок п'ять.", set_alarm, {time: по буднях на шосту сорок п'ять}, "repeating"]
+  - ["Постав будильник щопонеділка і щосереди о сьомій.", set_alarm, {time: щопонеділка і щосереди о сьомій}, "repeating on days"]
+  - ["Розбуди мене у суботу о сьомій.", set_alarm, {time: у суботу о сьомій}, "a weekday, the morning"]
+  - ["Постав будильник на полудень.", set_alarm, {time: полудень}, "noon"]
+  - ["Постав будильник на десяту вечора сьогодні.", set_alarm, {time: десяту вечора сьогодні}, "tonight"]
+  - ["Постав будильник на завтра на восьму ранку.", set_alarm, {time: завтра на восьму ранку}, "the day first"]
+  - ["Постав будильник через двадцять хвилин.", set_alarm, {time: через двадцять хвилин}, "from now"]
+  - ["Розбуди мене через вісім годин.", set_alarm, {time: через вісім годин}, "from now"]
+  - ["Скасуй будильник на завтра.", cancel_alarm, {time: завтра}, "a day alone"]
+  - ["Скасуй будильник на сьому.", cancel_alarm, {time: сьому}, "a time"]
+  - ["Скасуй будильник у суботу.", cancel_alarm, {time: суботу}, "a weekday after у"]
+  - ["Які в мене будильники?", alarm_status, {}, "an example sentence"]
+
+  # Reminders: with a time on the calendar, without one on the to-do list.
+  - ["Нагадай мені о п'ятій вечора подзвонити мамі.", remind_me, {reminder: о п'ятій вечора подзвонити мамі}, "time first"]
+  - ["Нагадай винести сміття щовівторка о сьомій вечора.", remind_me, {reminder: винести сміття щовівторка о сьомій вечора}, "repeating, time last"]
+  - ["Нагадай мені через десять хвилин перевірити духовку.", remind_me, {reminder: через десять хвилин перевірити духовку}, "from now"]
+  - ["Нагадай мені завтра о дев'ятій подзвонити стоматологу.", remind_me, {reminder: завтра о дев'ятій подзвонити стоматологу}, "a day and a time first"]
+  - ["Нагадай мені, що прийде сантехнік у п'ятницю о третій.", remind_me, {reminder: що прийде сантехнік у п'ятницю о третій}, "що, a weekday last"]
+  - ["Нагадай мені відпочити десять хвилин о п'ятій вечора.", remind_me, {reminder: відпочити десять хвилин о п'ятій вечора}, "a length that is the reminder's"]
+  - ["Нагадай мені на сьому вечора полити квіти.", remind_me, {reminder: на сьому вечора полити квіти}, "на kept at the text's start (WHEN_STARTS)"]
+  - ["Нагадай мені у п'ятницю о дев'ятій забрати посилку.", remind_me, {reminder: у п'ятницю о дев'ятій забрати посилку}, "у kept at the text's start"]
+  - ["Нагадай мені купити молоко.", remind_me, {reminder: купити молоко}, "no time: the to-do list"]
+  - ["Скасуй нагадування подзвонити мамі.", cancel_reminder, {reminder: подзвонити мамі}, "what it is about"]
+  - ["Скасуй нагадування про стоматолога.", cancel_reminder, {reminder: про стоматолога}, "про"]
+  - ["Видали нагадування на завтра.", cancel_reminder, {reminder: на завтра}, "its day"]
+  - ["Скасуй нагадування на п'яту вечора.", cancel_reminder, {reminder: на п'яту вечора}, "its time"]
+  - ["Скасуй нагадування у п'ятницю.", cancel_reminder, {reminder: у п'ятницю}, "its weekday, у kept"]
+  - ["Скасуй моє нагадування.", cancel_reminder, {}, "the only one, or which"]
+  - ["Які в мене нагадування?", reminder_status, {}, "an example sentence"]
+  - ["Що в моєму календарі на сьогодні?", my_calendar, {}, "the speaker's calendar"]

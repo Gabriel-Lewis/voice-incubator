@@ -9,8 +9,21 @@
 # blinds "osłony" or "rolety materiałowe" (shade). A lock is locked with
 # "zablokuj" or "zamknij na klucz": "zamknij drzwi" closes a door that is a
 # cover.
+#
+# They run Home Assistant's intents on the covers and locks added to the area
+# on the Names page. Nothing of the type there is their no_devices outcome
+# ("Nie ma osłon w sypialni"), not nothing happening. Opening, closing,
+# setting and asking about covers come in versions (variants; see
+# README.md): by type in the satellite's area, a cover by name, by type in
+# an area or on a floor named. Locks have no versions: one is locked or
+# unlocked only by name, and "zablokuj wszystko" is every lock in the home.
 title: Covers and locks
 icon: mdi:door
+
+# Commands shown together in Add a command: each one's topic.
+topics:
+  covers: {title: Blinds and covers, icon: mdi:blinds-horizontal}
+  locks: {title: Locks, icon: mdi:lock}
 
 # What the versions add to a command (merged into them with <<).
 shared:
@@ -32,8 +45,11 @@ shared:
       kitchen).
 
 commands:
+  # The blinds (by type) in the satellite's area, in an area or on a floor
+  # named, or a cover by name.
   open_covers:
     title: Open covers
+    topic: covers
     icon: mdi:blinds-open
     description: otworzyć rolety
     require: [[otwórz, otworzyć, podnieś, podnieść, odsłoń, odsłonić, rozsuń, rozsunąć, rozwiń, rozwinąć]]
@@ -60,6 +76,7 @@ commands:
           'garage': 'bram garażowych', 'gate': 'bram', 'shade': 'osłon', 'shutter': 'rolet', 'window': 'okien'} -%}
         {%- set where = (' ' ~ place.said) if (slots.area or slots.floor) else '' -%}
         Nie ma {{ kinds[slots.device_class] }}{{ where }}.
+    formerly: [open_cover]
     variants:
       here:
         title: Open the blinds in this satellite's area
@@ -90,6 +107,7 @@ commands:
 
   close_covers:
     title: Close covers
+    topic: covers
     icon: mdi:blinds
     description: zamknąć rolety
     require: [[zamknij, zamknąć, opuść, opuścić, zasłoń, zasłonić, zasuń, zasunąć, zwiń, zwinąć]]
@@ -117,6 +135,7 @@ commands:
           'garage': 'bram garażowych', 'gate': 'bram', 'shade': 'osłon', 'shutter': 'rolet', 'window': 'okien'} -%}
         {%- set where = (' ' ~ place.said) if (slots.area or slots.floor) else '' -%}
         Nie ma {{ kinds[slots.device_class] }}{{ where }}.
+    formerly: [close_cover]
     variants:
       here:
         title: Close the blinds in this satellite's area
@@ -145,8 +164,70 @@ commands:
         title: Close the blinds in an area or floor
         combinations: [[area, device_class], [floor, device_class]]
 
+  # "Ustaw rolety na 50 procent": 100 is open, 0 closed. Only covers that can
+  # be set to a position are (supports); the others there are left out.
+  cover_position:
+    title: Set covers to a position
+    topic: covers
+    icon: mdi:blinds-horizontal
+    description: ustawić rolety w położeniu
+    require: [[ustaw, otwórz, zamknij, podnieś, opuść, przesuń, ustawić, otworzyć, zamknąć, podnieść, opuścić]]
+    optional: [[wszystkie], [procent]]
+    exclude: [jest, są, otwarte, zamknięte, jasność, jasności, głośność, głośności, temperaturę, światło, światła, stopni,
+              stopnie, zablokuj, odblokuj, na klucz]
+    lists:
+      device_class: {list: cover_classes}
+    number: percentage
+    supports: position
+    intent:
+      name: HassSetPosition
+      slots: {position: "{{ slots.percentage }}", domain: cover, device_class: "{{ slots.device_class }}"}
+      anywhere: true
+    verbosity: specific
+    response:
+      done: >-
+        {%- set kinds = {'awning': ['markizę', 'markizy'], 'blind': ['żaluzję', 'żaluzje'],
+          'curtain': ['zasłonę', 'zasłony'], 'door': ['drzwi', 'drzwi'],
+          'garage': ['bramę garażową', 'bramy garażowe'], 'gate': ['bramę', 'bramy'],
+          'shade': ['osłonę', 'osłony'], 'shutter': ['roletę', 'rolety'], 'window': ['okno', 'okna']} -%}
+        {%- set where = (' ' ~ place.said) if (slots.area or slots.floor) else '' -%}
+        Ustawiam {{ kinds[slots.device_class][0 if result.count == 1 else 1] }}{{ where }} na {{ slots.percentage }} procent.
+      no_devices: >-
+        {%- set kinds = {'awning': 'markiz', 'blind': 'żaluzji', 'curtain': 'zasłon', 'door': 'drzwi',
+          'garage': 'bram garażowych', 'gate': 'bram', 'shade': 'osłon', 'shutter': 'rolet', 'window': 'okien'} -%}
+        {%- set where = (' ' ~ place.said) if (slots.area or slots.floor) else '' -%}
+        Nie ma {{ kinds[slots.device_class] }}{{ where }}.
+      not_supported: >-
+        {%- set kinds = {'awning': 'markiz', 'blind': 'żaluzji', 'curtain': 'zasłon', 'door': 'drzwi',
+          'garage': 'bram garażowych', 'gate': 'bram', 'shade': 'osłon', 'shutter': 'rolet', 'window': 'okien'} -%}
+        {%- set where = (' ' ~ place.said) if (slots.area or slots.floor) else '' -%}
+        Nie da się ustawić położenia {{ kinds[slots.device_class] }}{{ where }}.
+    variants:
+      here:
+        title: Set the blinds in this satellite's area to a position
+        needs: *nothing_here
+      device:
+        <<: *cover
+        title: Set a cover to a position by name
+        icon: mdi:window-shutter-settings
+        description: ustawić coś w położeniu
+        lists: null
+        combinations: [[entity, percentage], [entity, area, percentage]]
+        intent:
+          name: HassSetPosition
+          slots: {position: "{{ slots.percentage }}"}
+        response:
+          done: "{{ names.get(slots.entity[0], state_attr(slots.entity[0], 'friendly_name')) }}: ustawiam na {{ slots.percentage }} procent."
+        needs:
+          - Add names for the covers it may set (Names page).
+      place:
+        <<: *place
+        title: Set the blinds in an area or floor to a position
+        combinations: [[area, device_class, percentage], [floor, device_class, percentage]]
+
   lock:
     title: Lock a lock
+    topic: locks
     icon: mdi:lock
     description: zamknąć zamek na klucz
     require: [[zablokuj, zablokować, zarygluj, zaryglować, zamknij na klucz, zamknij ... na klucz, zamknąć na klucz]]
@@ -173,6 +254,7 @@ commands:
 
   unlock:
     title: Unlock a lock
+    topic: locks
     icon: mdi:lock-open-variant
     description: otworzyć zamek
     # "odblokuły": odblokuj as a speech-to-text often writes it.
@@ -196,12 +278,12 @@ commands:
             else ('f' if w[-1:] == 'a' else ('n' if w[-1:] in ['o', 'e', 'ę'] else 'm')) -%}
           {{ name }} odblokowan{{ {'m': 'y', 'f': 'a', 'n': 'e', 'p': 'e'}[g] }}.
     needs:
-      - Add names for the locks it may unlock (Names page). Anyone the satellite
-        hears can unlock them; keep it to the satellites that should with a
-        command group.
+      - Add names for the locks it may unlock (Names). Anyone a satellite hears
+        can unlock them; turn it off in the areas that shouldn't.
 
   lock_all:
     title: Lock up
+    topic: locks
     icon: mdi:shield-lock
     description: zamknąć wszystkie zamki
     examples: ["zablokuj wszystkie drzwi", "zamknij wszystkie drzwi na klucz", "zablokuj wszystko", "zamknij wszystko na klucz",
@@ -218,6 +300,7 @@ commands:
 
   are_covers_open:
     title: Are covers open
+    topic: covers
     icon: mdi:blinds-horizontal
     description: sprawdzić, czy rolety są otwarte
     require: [[czy, jest, są]]
@@ -260,6 +343,7 @@ commands:
       {%- else -%}
       {{ 'Tak' if slots.asked == 'open' else 'Nie' }}, otwarte: {{ (ns.opened[:-1] | join(', ') ~ ' i ' ~ ns.opened[-1]) if count > 1 else ns.opened[0] }}.
       {%- endif -%}
+    formerly: [is_cover_open]
     variants:
       here:
         title: Are the blinds open in this satellite's area
@@ -299,6 +383,7 @@ commands:
 
   is_locked:
     title: Is a lock locked
+    topic: locks
     icon: mdi:lock-question
     description: sprawdzić, czy drzwi są zamknięte na klucz
     require: [[czy, jest, są]]
@@ -338,6 +423,7 @@ commands:
 
   all_locked:
     title: Is everything locked
+    topic: locks
     icon: mdi:lock-alert
     description: sprawdzić, czy wszystko jest zamknięte na klucz
     require: [[czy, jest, są], [wszystkie, wszystko]]

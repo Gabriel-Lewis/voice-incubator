@@ -1,11 +1,111 @@
-# About the satellite itself (Italian), as the English library's satellites.yaml.
+# The satellites (Italian), as the English library's satellites.yaml:
+# announcements between them, the intercom, a satellite's own volume, and
+# never mind.
+#
+# An announcement is said on the other satellites, after a chime: every one, or
+# those in the area or on the floor named. One in a call, ringing a timer or
+# joined by the intercom says it once that is over (within a minute).
+#
+# The intercom joins this satellite and the one in the area named, once this
+# call ends: what is said at each is heard at the other. Both stop answering
+# wake words and blink their rings until the button on either is pressed (or
+# after half an hour). Both need firmware that can.
 title: Satellites
 icon: mdi:speaker-wireless
 
+# Commands shown together in Add a command: each one's topic.
+topics:
+  own_volume: {title: Satellite volume, icon: mdi:volume-equal}
+
 commands:
+  announce:
+    title: Announce
+    icon: mdi:bullhorn
+    description: annunciare qualcosa sugli altri satelliti
+    # "Annuncia che la cena è pronta", "di' a tutti che la cena è pronta",
+    # "annuncia al piano di sopra che la cena è pronta", "annuncia in cucina
+    # che la cena è pronta".
+    require: [[annuncia, annunciare, comunica a tutti, di' a tutti, dì a tutti, dite a tutti, avvisa tutti]]
+    optional: [[che], [in, su, a, al, alla, nel, nella]]
+    names:
+      area: {count: 1}
+      floor: {count: 1}
+    combinations: [[message], [area, message], [floor, message]]
+    wildcard:
+      slot: message
+      after: [annuncia, annunciare, comunica a tutti, di' a tutti, dì a tutti, dite a tutti, avvisa tutti, che]
+      to_end: true
+      max_words: 15
+    announce: "{{ slots.message }}"
+
+  intercom:
+    title: Intercom
+    icon: mdi:phone-in-talk
+    description: parlare con un'altra stanza attraverso il suo satellite
+    # "Collegati con la cucina", "interfono con la cucina", "chiama il
+    # satellite della cucina", "collegami all'assistente vocale dello studio".
+    require: [[collegati, collegami, connettiti, interfono, chiama, citofona]]
+    optional: [[con, a, al, alla, in], [assistente vocale, satellite]]
+    names:
+      area: {count: 1}
+    intercom: connect
+    needs:
+      - Give the satellites their areas (each one's page), and the areas names
+        (Names page). The button on either satellite ends it.
+
+  # The satellite's own speaker, whatever plays on it: what its dial sets.
+  own_volume_up:
+    title: Turn yourself up
+    topic: own_volume
+    icon: mdi:volume-plus
+    description: alzare il volume del satellite
+    examples: ["parla più forte", "alza la voce", "alza il tuo volume", "parla più alto"]
+    require: [[parla più forte, alza la voce, alza il tuo volume, alza la tua voce, parla più alto, alzati di volume]]
+    action:
+      action: media_player.volume_up
+      target:
+        entity_id: "{{ satellite.device_media_player }}"
+    verbosity: beep
+
+  own_volume_down:
+    title: Turn yourself down
+    topic: own_volume
+    icon: mdi:volume-minus
+    description: abbassare il volume del satellite
+    examples: ["parla più piano", "abbassa la voce", "abbassa il tuo volume", "parla più sottovoce"]
+    require: [[parla più piano, abbassa la voce, abbassa il tuo volume, abbassa la tua voce, parla più sottovoce, parla piano]]
+    action:
+      action: media_player.volume_down
+      target:
+        entity_id: "{{ satellite.device_media_player }}"
+    verbosity: beep
+
+  own_volume_set:
+    title: Set your volume
+    topic: own_volume
+    icon: mdi:volume-equal
+    description: impostare il volume del satellite
+    # Also turned up or down to a number: "alza il tuo volume a 50".
+    require: [[tuo volume, tua voce]]
+    optional: [[metti, imposta, regola, porta, alza, abbassa], [per cento]]
+    number: percentage
+    action:
+      action: media_player.volume_set
+      target:
+        entity_id: "{{ satellite.device_media_player }}"
+      data:
+        volume_level: "{{ slots.percentage / 100 }}"
+    verbosity: beep
+    response:
+      done:
+        brief: Fatto.
+        specific: Il mio volume è al {{ slots.percentage }} per cento.
+
   never_mind:
     title: Never mind
     icon: mdi:close-circle-outline
     description: non fare niente
-    # Said whole only: "annulla il timer" is the timer's.
+    # Said whole only: "annulla il timer" is the timer's. Nothing to do, and by
+    # default nothing said, not even a sound: the satellite stops listening.
+    # Give it a response (Only respond) or a beep to hear that it did.
     examples: [lascia perdere, lascia stare, niente, annulla, non importa, fa niente]

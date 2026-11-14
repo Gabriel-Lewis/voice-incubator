@@ -1,0 +1,138 @@
+# Sensors (Ukrainian), as the English library's sensors.yaml: asking a sensor
+# or a binary sensor by its name (Names page): "яка температура надворі",
+# "скільки споживає сушарка", "чи відчинені вхідні двері", "чи протікає в
+# підвалі".
+#
+# A sensor says its value as Home Assistant has it, in its unit, the unit
+# agreeing with the number ("21,5 градуса", "40 відсотків", "3 кіловати"), or
+# its state in words; a binary sensor says what it is in the words of its
+# device class (відчинено чи зачинено, мокро чи сухо, зайнято чи вільно ...),
+# and так or ні when asked about one of them. A name may be shared by one in
+# each room: the room said picks it, else the satellite's. Names are said
+# after a colon ("Температура надворі: 21 градус"), so nothing has to agree
+# with them.
+title: Sensors
+icon: mdi:gauge
+
+commands:
+  sensor_value:
+    title: What a sensor says
+    icon: mdi:gauge
+    description: сказати, що показує датчик
+    require: [[яка, який, яке, які, скільки, що, скажи, підкажи]]
+    optional: [[зараз, показує, показник, рівень, споживає, використовує, у, в, на]]
+    names:
+      entity: {count: 1, domains: [sensor]}
+      area: {count: 1}
+    # A room with the sensor picks it out: the one of that name there.
+    combinations: [[entity], [entity, area]]
+    # Each unit's forms after 1, 2-4, 5 and more, and after a fraction.
+    response: >-
+      {%- set e = slots.entity[0] -%}
+      {%- set name = names.get(e, state_attr(e, 'friendly_name')) -%}
+      {%- set state = states(e) -%}
+      {%- set number = state | float(none) -%}
+      {%- set unit = state_attr(e, 'unit_of_measurement') -%}
+      {%- set units = {'°C': ['градус', 'градуси', 'градусів', 'градуса'], '°F': ['градус', 'градуси', 'градусів', 'градуса'],
+        '%': ['відсоток', 'відсотки', 'відсотків', 'відсотка'], 'W': ['ват', 'вати', 'ватів', 'вата'],
+        'kW': ['кіловат', 'кіловати', 'кіловатів', 'кіловата'],
+        'Wh': ['ват-година', 'ват-години', 'ват-годин', 'ват-години'],
+        'kWh': ['кіловат-година', 'кіловат-години', 'кіловат-годин', 'кіловат-години'],
+        'V': ['вольт', 'вольти', 'вольтів', 'вольта'], 'A': ['ампер', 'ампери', 'амперів', 'ампера'],
+        'lx': ['люкс', 'люкси', 'люксів', 'люкса'],
+        'ppm': ['частка на мільйон', 'частки на мільйон', 'часток на мільйон', 'частки на мільйон'],
+        'ppb': ['частка на мільярд', 'частки на мільярд', 'часток на мільярд', 'частки на мільярд'],
+        'µg/m³': ['мікрограм на кубічний метр', 'мікрограми на кубічний метр', 'мікрограмів на кубічний метр',
+          'мікрограма на кубічний метр'],
+        'hPa': ['гектопаскаль', 'гектопаскалі', 'гектопаскалів', 'гектопаскаля'],
+        'mbar': ['мілібар', 'мілібари', 'мілібарів', 'мілібара'],
+        'inHg': ['дюйм ртутного стовпа', 'дюйми ртутного стовпа', 'дюймів ртутного стовпа', 'дюйма ртутного стовпа'],
+        'mm': ['міліметр', 'міліметри', 'міліметрів', 'міліметра'],
+        'cm': ['сантиметр', 'сантиметри', 'сантиметрів', 'сантиметра'], 'in': ['дюйм', 'дюйми', 'дюймів', 'дюйма'],
+        'km/h': ['кілометр на годину', 'кілометри на годину', 'кілометрів на годину', 'кілометра на годину'],
+        'mph': ['миля на годину', 'милі на годину', 'миль на годину', 'милі на годину'],
+        'm/s': ['метр на секунду', 'метри на секунду', 'метрів на секунду', 'метра на секунду'],
+        'L': ['літр', 'літри', 'літрів', 'літра'], 'gal': ['галон', 'галони', 'галонів', 'галона'],
+        'm³': ['кубічний метр', 'кубічні метри', 'кубічних метрів', 'кубічного метра'],
+        'min': ['хвилина', 'хвилини', 'хвилин', 'хвилини'], 'h': ['година', 'години', 'годин', 'години'],
+        's': ['секунда', 'секунди', 'секунд', 'секунди'], 'd': ['день', 'дні', 'днів', 'дня'],
+        'dB': ['децибел', 'децибели', 'децибелів', 'децибела'], 'kg': ['кілограм', 'кілограми', 'кілограмів', 'кілограма'],
+        'lb': ['фунт', 'фунти', 'фунтів', 'фунта'],
+        'mm/h': ['міліметр на годину', 'міліметри на годину', 'міліметрів на годину', 'міліметра на годину'],
+        'in/h': ['дюйм на годину', 'дюйми на годину', 'дюймів на годину', 'дюйма на годину']} -%}
+      {%- if state in ['unavailable', 'unknown'] -%}
+      {{ name }}: зараз {{ 'недоступно' if state == 'unavailable' else 'невідомо' }}.
+      {%- elif number is not none -%}
+      {%- set shown = (number | round(1)) | string -%}
+      {%- set shown = shown[:-2] if shown.endswith('.0') else shown -%}
+      {%- set n = (number | round(0) | int) | abs -%}
+      {%- set forms = units.get(unit) -%}
+      {%- set word = '' if not unit else (unit if not forms else (forms[3] if '.' in shown
+        else (forms[0] if n % 10 == 1 and n % 100 != 11 else (forms[1] if n % 10 in [2, 3, 4]
+        and n % 100 not in [12, 13, 14] else forms[2])))) -%}
+      {{ name }}: {{ shown | replace('-', 'мінус ') | replace('.', ' кома ') }}{{ (' ' ~ word) if word else '' }}.
+      {%- elif state_attr(e, 'device_class') == 'timestamp' -%}
+      {%- set t = as_local(as_datetime(state)) -%}
+      {%- set days = ['у понеділок', 'у вівторок', 'у середу', 'у четвер', "у п'ятницю", 'у суботу', 'у неділю'] -%}
+      {%- set hours = ['нульовій', 'першій', 'другій', 'третій', 'четвертій', "п'ятій", 'шостій', 'сьомій', 'восьмій',
+        "дев'ятій", 'десятій', 'одинадцятій', 'дванадцятій', 'тринадцятій', 'чотирнадцятій', "п'ятнадцятій",
+        'шістнадцятій', 'сімнадцятій', 'вісімнадцятій', "дев'ятнадцятій", 'двадцятій', 'двадцять першій',
+        'двадцять другій', 'двадцять третій'] -%}
+      {%- set ones = ['', 'одна', 'дві', 'три', 'чотири', "п'ять", 'шість', 'сім', 'вісім', "дев'ять"] -%}
+      {%- set teens = ['десять', 'одинадцять', 'дванадцять', 'тринадцять', 'чотирнадцять', "п'ятнадцять",
+        'шістнадцять', 'сімнадцять', 'вісімнадцять', "дев'ятнадцять"] -%}
+      {%- set tens = ['', '', 'двадцять', 'тридцять', 'сорок', "п'ятдесят"] -%}
+      {%- set m = t.minute -%}
+      {{ name }}: {{ days[t.weekday()] }} {{ 'об' if t.hour == 11 else 'о' }} {{ hours[t.hour] }}
+      {{- '' if m == 0 else ' ' ~ (('нуль ' ~ ones[m]) if m < 10 else (teens[m - 10] if m < 20
+        else tens[m // 10] ~ ((' ' ~ ones[m % 10]) if m % 10 else ''))) }}.
+      {%- else -%}
+      {{ name }}: {{ state | replace('_', ' ') }}.
+      {%- endif -%}
+    needs:
+      - Add names for the sensors it may ask about (Names page).
+
+  binary_sensor_state:
+    title: Is a binary sensor on
+    icon: mdi:checkbox-blank-circle-outline
+    description: сказати, у якому стані датчик
+    # "Чи" may be left out, as it often is: "Вхідні двері відчинені?".
+    optional: [[чи], [ще, досі, зараз]]
+    names:
+      entity: {count: 1, domains: [binary_sensor]}
+      area: {count: 1}
+    lists:
+      asked: {list: binary_states}
+    combinations: [[entity, asked], [entity, area, asked]]
+    # Each device class's two states: Home Assistant's words (the
+    # binary_states list's) and how they are said.
+    response: >-
+      {%- set e = slots.entity[0] -%}
+      {%- set name = names.get(e, state_attr(e, 'friendly_name')) -%}
+      {%- set state = states(e) -%}
+      {%- set kinds = {'door': ['open', 'closed', 'відчинено', 'зачинено'],
+        'garage_door': ['open', 'closed', 'відчинено', 'зачинено'], 'window': ['open', 'closed', 'відчинено', 'зачинено'],
+        'opening': ['open', 'closed', 'відкрито', 'закрито'], 'lock': ['unlocked', 'locked', 'відімкнено', 'замкнено'],
+        'moisture': ['wet', 'dry', 'мокро', 'сухо'], 'motion': ['on', 'clear', 'є рух', 'руху немає'],
+        'occupancy': ['occupied', 'clear', 'зайнято', 'вільно'], 'presence': ['home', 'away', 'вдома', 'не вдома'],
+        'plug': ['plugged in', 'unplugged', 'у розетці', 'не в розетці'], 'battery': ['low', 'off', 'розряджено', 'заряд у нормі'],
+        'battery_charging': ['charging', 'off', 'заряджається', 'не заряджається'],
+        'connectivity': ['connected', 'disconnected', 'підключено', 'відключено'],
+        'running': ['running', 'off', 'працює', 'не працює'], 'smoke': ['on', 'clear', 'є дим', 'диму немає'],
+        'gas': ['on', 'clear', 'є газ', 'газу немає'], 'carbon_monoxide': ['on', 'clear', 'є чадний газ', 'чадного газу немає'],
+        'problem': ['on', 'off', 'є проблема', 'усе гаразд'], 'cold': ['cold', 'off', 'холодно', 'норма'],
+        'heat': ['hot', 'off', 'гаряче', 'норма'], 'light': ['on', 'off', 'є світло', 'темно'],
+        'sound': ['on', 'off', 'є звук', 'тихо'], 'vibration': ['on', 'off', 'є вібрація', 'вібрації немає'],
+        'tamper': ['on', 'off', 'є втручання', 'усе гаразд'], 'safety': ['on', 'off', 'небезпечно', 'безпечно'],
+        'update': ['on', 'off', 'є оновлення', 'оновлено']} -%}
+      {%- set pair = kinds.get(state_attr(e, 'device_class'), ['on', 'off', 'увімкнено', 'вимкнено']) -%}
+      {%- set now = pair[2] if state == 'on' else pair[3] -%}
+      {%- if state not in ['on', 'off'] -%}
+      {{ name }}: зараз {{ {'unavailable': 'недоступно', 'unknown': 'невідомо'}.get(state, state) }}.
+      {%- elif slots.asked in pair[:2] or slots.asked in ['on', 'off'] -%}
+      {{ 'Так' if (slots.asked in [pair[0], 'on']) == (state == 'on') else 'Ні' }}, {{ name }}: {{ now }}.
+      {%- else -%}
+      {{ name }}: {{ now }}.
+      {%- endif -%}
+    needs:
+      - Add names for the binary sensors it may ask about (Names page).

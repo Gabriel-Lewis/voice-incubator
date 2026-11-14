@@ -10,6 +10,10 @@ import re
 PLACE_BEFORE = ("in", "op", "bij", "naar", "aan")
 ARTICLES = ("de", "het", "den")
 
+WHEN_STARTS = ("in", "op", "het")
+"""Words of PLACE_BEFORE and ARTICLES an alarm's time or a reminder may start
+with, kept there: "in het weekend", "op vrijdag"."""
+
 # ------------------------------------------------------------------- music
 
 MUSIC_GENERIC = {

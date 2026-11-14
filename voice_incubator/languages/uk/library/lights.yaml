@@ -1,6 +1,16 @@
-# Lights and switches (Ukrainian), as the English library's lights.yaml.
+# Lights and switches (Ukrainian), as the English library's lights.yaml: on
+# and off, brightness, color, and asking which are on.
+#
+# "Вимкни" must beat the on-words by a margin (the language's contrasts): the
+# model hears "ввімкни" as off. Lights are "світло" (the lights of a place),
+# or a lamp in its case: "лампу", "люстру".
 title: Lights and switches
 icon: mdi:lightbulb-outline
+
+# Commands shown together in Add a command: each one's topic.
+topics:
+  on_and_off: {title: On and off, icon: mdi:lightbulb-on-outline}
+  brightness_and_color: {title: Brightness and color, icon: mdi:brightness-6}
 
 # What the versions add to a command (merged into them with <<).
 shared:
@@ -17,11 +27,47 @@ shared:
     combinations: [[area], [floor]]
     needs:
       - Add names for the areas and floors it may act in (Names page).
+  # 30 percent brighter or dimmer (slots.step), never to off: the lights that
+  # are on here, or in an area or floor named, of those added there (Names) --
+  # no intent changes brightness by a step -- or a light by name, which
+  # comes on to be brightened.
+  brightness_step: &brightness_step
+    - variables:
+        none_on: {outcome: no_lights}
+        lights: >-
+          {%- if slots.entity -%}
+          {{ (slots.entity | select('is_state', 'on') | list) if slots.step | int < 0 else slots.entity }}
+          {%- else -%}
+          {%- set ns = namespace(ids=[]) -%}
+          {%- for s in states.light if devices.get(s.entity_id) in place.areas and s.state == 'on'
+            and s.attributes.supported_color_modes != ['onoff'] -%}
+          {%- set ns.ids = ns.ids + [s.entity_id] -%}
+          {%- endfor -%}
+          {{ ns.ids }}
+          {%- endif -%}
+    - if: "{{ not lights }}"
+      then:
+        - stop: No lights to change
+          response_variable: none_on
+    - repeat:
+        for_each: "{{ lights }}"
+        sequence:
+          - action: light.turn_on
+            target:
+              entity_id: "{{ repeat.item }}"
+            data:
+              brightness_pct: >-
+                {{ [[((state_attr(repeat.item, 'brightness') or 0) / 2.55) | round(0) + slots.step | int, 1] | max, 100] | min | int }}
+  brightness_said: &brightness_said
+    no_lights: >-
+      {{ (names.get(slots.entity[0], state_attr(slots.entity[0], 'friendly_name')) ~ ': вимкнено.') if slots.entity
+      else 'Світло ' ~ place.said ~ ' не горить.' }}
 
 commands:
   # Lights here, in an area or on a floor named, or a device by name.
   turn_on:
     title: Turn on
+    topic: on_and_off
     icon: mdi:lightbulb-on-outline
     description: увімкнути світло
     require: [[світло, лампу, лампи, лампа, лампочку, люстру, освітлення, підсвітку],
@@ -48,6 +94,7 @@ commands:
           {%- else -%}
           Увімкнено {{ place.said }}: {{ (ns.names[:-1] | join(', ') ~ ' і ' ~ ns.names[-1]) if n > 1 else ns.names[0] }}.
           {%- endif -%}
+    formerly: [lights_on, device_on]
     variants:
       here:
         title: Turn on the lights in this satellite's area
@@ -75,6 +122,7 @@ commands:
 
   turn_off:
     title: Turn off
+    topic: on_and_off
     icon: mdi:lightbulb-off-outline
     description: вимкнути світло
     require: [[світло, лампу, лампи, лампа, лампочку, люстру, освітлення, підсвітку],
@@ -100,6 +148,7 @@ commands:
           {%- else -%}
           Вимкнено {{ place.said }}: {{ (ns.names[:-1] | join(', ') ~ ' і ' ~ ns.names[-1]) if n > 1 else ns.names[0] }}.
           {%- endif -%}
+    formerly: [lights_off, device_off]
     variants:
       here:
         title: Turn off the lights in this satellite's area
@@ -127,6 +176,7 @@ commands:
 
   any_lights_on:
     title: Are any lights on
+    topic: on_and_off
     icon: mdi:lightbulb-question
     description: дізнатися, де горить світло
     # No example sentences: one said word for word carries no area or floor.
@@ -197,6 +247,7 @@ commands:
 
   set_brightness:
     title: Set the brightness
+    topic: brightness_and_color
     icon: mdi:brightness-6
     description: змінити яскравість світла
     supports: brightness
@@ -238,6 +289,7 @@ commands:
 
   light_color:
     title: Set the light color
+    topic: brightness_and_color
     icon: mdi:format-color-fill
     description: змінити колір світла
     supports: color
@@ -282,3 +334,126 @@ commands:
         <<: *place
         title: Set the light color in an area or floor
         combinations: [[area, color], [floor, color]]
+
+  brighter:
+    title: Brighter
+    topic: brightness_and_color
+    icon: mdi:brightness-7
+    description: зробити світло яскравішим
+    supports: brightness
+    # "Зроби світло яскравіше", "яскравіше", "додай світла"; до числа --
+    # Set the brightness.
+    require: [[яскравіше, світліше, збільш яскравість, збільш ... яскравість, підвищ яскравість,
+               підвищ ... яскравість, додай яскравості, додай світла]]
+    optional: [[зроби, трохи, ще], [світло, лампу, лампи, люстру, освітлення]]
+    exclude: [чи, гучність, звук, музику, температуру, відсотків, відсотки, відсоток, відсотка]
+    slots: {step: 30}
+    action: *brightness_step
+    verbosity: beep
+    response:
+      <<: *brightness_said
+      done:
+        brief: Яскравіше.
+        specific: >-
+          {{ (names.get(slots.entity[0], state_attr(slots.entity[0], 'friendly_name')) ~ ': яскравіше') if slots.entity
+          else 'Світло ' ~ place.said ~ ' тепер яскравіше' }}.
+    variants:
+      here:
+        title: Brighter in this satellite's area
+        examples: ["[зроби] [трохи] (яскравіше|світліше)", "зроби світло [трохи] яскравіше", "додай світла"]
+      device:
+        <<: *device
+        title: Brighten a light by name
+        names:
+          entity: {count: 1, domains: [light]}
+          area: {count: 1}
+        needs:
+          - Add names for the lights it may brighten (Names page).
+      place:
+        <<: *place
+        title: Brighter in an area or floor
+
+  dimmer:
+    title: Dimmer
+    topic: brightness_and_color
+    icon: mdi:brightness-4
+    description: зробити світло тьмянішим
+    supports: brightness
+    # "Приглуши світло", "зроби тьмяніше", "зменш яскравість".
+    require: [[тьмяніше, темніше, приглуши світло, притуши світло, зменш яскравість, зменш ... яскравість,
+               знизь яскравість, знизь ... яскравість, менше світла]]
+    optional: [[зроби, трохи, ще], [світло, лампу, лампи, люстру, освітлення]]
+    exclude: [чи, гучність, звук, музику, температуру, відсотків, відсотки, відсоток, відсотка]
+    slots: {step: -30}
+    action: *brightness_step
+    verbosity: beep
+    response:
+      <<: *brightness_said
+      done:
+        brief: Тьмяніше.
+        specific: >-
+          {{ (names.get(slots.entity[0], state_attr(slots.entity[0], 'friendly_name')) ~ ': тьмяніше') if slots.entity
+          else 'Світло ' ~ place.said ~ ' тепер тьмяніше' }}.
+    variants:
+      here:
+        title: Dimmer in this satellite's area
+        examples: ["[зроби] [трохи] (тьмяніше|темніше)", "приглуши світло", "зроби світло [трохи] тьмяніше"]
+      device:
+        <<: *device
+        title: Dim a light by name
+        # "Приглуши торшер".
+        require: [[тьмяніше, темніше, приглуши, притуши, зменш яскравість, зменш ... яскравість, знизь яскравість,
+                   знизь ... яскравість]]
+        names:
+          entity: {count: 1, domains: [light]}
+          area: {count: 1}
+        needs:
+          - Add names for the lights it may dim (Names page).
+      place:
+        <<: *place
+        title: Dimmer in an area or floor
+
+  light_temperature:
+    title: Set the color temperature
+    topic: brightness_and_color
+    icon: mdi:white-balance-sunny
+    description: змінити відтінок білого світла
+    supports: color_temp
+    # By what the white is called: тепле, м'яке, нейтральне, холодне, денне
+    # (the color_temperatures list, in kelvin): "зроби світло теплим", "постав
+    # на кухні холодне біле світло".
+    require: [[зроби, зміни, постав, встанови, колірну температуру], [світло, світла, лампу, лампи, люстру,
+              підсвітку, освітлення]]
+    optional: [[колірну температуру, температуру, відтінок], [на]]
+    exclude: [чи, яскравість, відсотків, градусів, градуси]
+    lists:
+      color_temperature: {list: color_temperatures}
+    intent:
+      name: HassLightSet
+      slots: {temperature: "{{ slots.color_temperature }}"}
+    verbosity: beep
+    response:
+      done:
+        brief: Відтінок змінено.
+        specific: >-
+          {%- set whites = {'2700': 'теплий білий', '3000': "м'який білий", '4000': 'нейтральний білий',
+            '5000': 'холодний білий', '6500': 'денне світло'} -%}
+          {{ names.get(slots.entity[0], state_attr(slots.entity[0], 'friendly_name')) if slots.entity
+          else 'Світло ' ~ place.said }}: {{ whites.get(slots.color_temperature | string, slots.color_temperature | string ~ ' K') }}.
+    variants:
+      here:
+        title: Set the color temperature in this satellite's area
+      device:
+        <<: *device
+        title: Set the color temperature of a light by name
+        require: [[зроби, зміни, постав, встанови, колірну температуру]]
+        names:
+          entity: {count: 1, domains: [light]}
+          area: {count: 1}
+        combinations: [[entity, color_temperature], [entity, area, color_temperature]]
+        needs:
+          - Add names for the lights it may change (Names page).
+      place:
+        <<: *place
+        title: Set the color temperature in an area or floor
+        combinations: [[area, color_temperature], [floor, color_temperature]]

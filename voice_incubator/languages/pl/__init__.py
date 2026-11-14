@@ -21,6 +21,7 @@ PACK = Pack(
     transducer="stt_pl_fastconformer_hybrid_large_pc-transducer",
     transducer_about="stt_pl_fastconformer_hybrid_large_pc, 115M parameters",
     piper="pl_PL-gosia-medium.onnx",
+    piper_languages=("pl_PL",),
     adapt={
         "language": "pl",
         "filler": [

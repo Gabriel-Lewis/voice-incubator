@@ -50,6 +50,12 @@ def within_an_amount(before: list[str], after: list[str]) -> bool:
     return _number(first) or (first in ("a", "an") and len(after) > 1 and (after[1] in UNITS or after[1] in ("half", "quarter")))
 
 
+def devices(names: list[str]) -> str:
+    """The devices a command named, said again after a command that named
+    nothing, for it to act on them too: "the TV and the Lamp"."""
+    return " and ".join(f"the {name}" for name in names)
+
+
 def _number(word: str) -> bool:
     return word.isdigit() or word in NUMBERS
 

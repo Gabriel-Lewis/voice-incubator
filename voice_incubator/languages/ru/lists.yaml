@@ -1,7 +1,8 @@
 # The value lists every home has in Russian (Pack.lists): a command's value
 # slot uses one by name ({list: colors}). A home's own list by the same name,
 # in Russian, takes its place (the Names page). Values are what Home Assistant
-# gets: CSS color names, cover device classes, HVAC modes.
+# gets: CSS color names, cover device classes, HVAC modes. Each is said in
+# the forms a sentence asks for ("сделай свет красным", "включи красный свет").
 colors:
   red: [красный, красным, красного, красную, красное]
   orange: [оранжевый, оранжевым, оранжевого, оранжевую, оранжевое]
@@ -16,6 +17,11 @@ colors:
 on_off:
   "on": [включен, включена, включено, включены]
   "off": [выключен, выключена, выключено, выключены]
+media_kinds:
+  # What plays (Music library): "музыку" is Music Assistant's players,
+  # "телевизор" the media players whose device class is tv.
+  music: [музыку, музыка, музыки]
+  tv: [телевизор, телевизора, телевизоре, телик]
 cover_classes:
   awning: [маркизу, маркиза, маркизы, тент, навес]
   blind: [жалюзи]
@@ -32,11 +38,75 @@ open_closed:
 locked_unlocked:
   locked: [заперт, заперта, заперто, заперты, закрыт на ключ, закрыта на ключ, закрыто на ключ, закрыты на ключ, заблокирован, заблокирована]
   unlocked: [отперт, отперта, отперто, отперты, разблокирован, разблокирована]
+color_temperatures:
+  # "Сделай свет теплым", "включи холодный белый": "дневной" without "свет",
+  # which the command hears on its own.
+  "2700": [теплый белый, теплым белым, теплый, теплым]
+  "3000": [мягкий белый, мягким белым, мягкий, мягким]
+  "4000": [нейтральный белый, нейтральным белым, нейтральный, нейтральным, естественный, естественным]
+  "5000": [холодный белый, холодным белым, холодный, холодным]
+  "6500": [дневной, дневным]
+forecast_days:
+  today: [сегодня]
+  tomorrow: [завтра]
+  day_after_tomorrow: [послезавтра]
+  monday: [понедельник]
+  tuesday: [вторник]
+  wednesday: [среду, среда]
+  thursday: [четверг]
+  friday: [пятницу, пятница]
+  saturday: [субботу, суббота]
+  sunday: [воскресенье]
+  weekend: [выходные, выходных]
+weather_kinds:
+  rain: [дождь, дождя, дождик, дожди, зонт, зонтик]
+  snow: [снег, снега, снегопад]
+fan_modes:
+  # "Включи вентилятор термостата": the verb says it, as "on" does.
+  auto: [авто, автоматический, автоматическом, автоматически]
+  "on": [включи, включен, постоянно, постоянный]
+  "off": [выключи, выключен, выкл]
+  low: [низкий, низкую, низкой, слабый]
+  medium: [средний, среднюю, средней]
+  high: [высокий, высокую, высокой, сильный]
+  circulate: [циркуляция, циркуляцию, циркуляции]
+  # Both at once, where a thermostat's modes are ("on_low", "auto_high").
+  auto_low: [авто низкий, автоматический низкий]
+  auto_medium: [авто средний, автоматический средний]
+  auto_high: [авто высокий, автоматический высокий]
+  on_low: [постоянно низкий]
+  on_medium: [постоянно средний]
+  on_high: [постоянно высокий]
+binary_states:
+  # What a binary sensor is asked to be ("входная дверь открыта"): the words
+  # for each of its device classes' two states (Sensors library group). Not
+  # locked or unlocked: "входная дверь заперта" is the lock's (Covers and
+  # locks), which asks a binary sensor of the lock class too.
+  "on": [включен, включена, включено, включены]
+  "off": [выключен, выключена, выключено, выключены]
+  open: [открыт, открыта, открыто, открыты]
+  closed: [закрыт, закрыта, закрыто, закрыты]
+  wet: [мокро, протечка, протекает, течет]
+  dry: [сухо]
+  occupied: [занят, занята, занято, заняты]
+  clear: [свободен, свободна, свободно, свободны, пусто]
+  home: [дома]
+  away: [нет дома, не дома, ушел, ушла]
+  connected: [подключен, подключена, подключено, в сети, онлайн]
+  disconnected: [отключен, отключена, отключено, не в сети, офлайн]
+  running: [работает, запущен, запущена]
+  charging: [заряжается]
+  plugged in: [в розетке, воткнут]
+  unplugged: [не в розетке, выдернут]
+  low: [разряжен, разряжена, садится]
+  cold: [холодно]
+  hot: [жарко, перегрелся, перегрелась]
 hvac_modes:
-  "off": [выключено, выкл]
+  # "Выключи термостат": the verb says it, as "off" does.
+  "off": [выключено, выкл, выключи]
   heat: [обогрев, нагрев, обогрева]
   cool: [охлаждение, охлаждения, кондиционер]
   heat_cool: [обогрев и охлаждение]
   auto: [авто, автоматический, автоматическом]
   dry: [осушение, осушения]
-  fan_only: [вентиляция, вентилятор]
+  fan_only: [вентиляция, вентиляцию, только вентиляция]

@@ -1,8 +1,23 @@
-# Climate (Russian), as the English library's climate.yaml.
+# Climate (Russian), as the English library's climate.yaml: the home's
+# thermostat (Settings), or one a command is given (its implied target): what
+# it's set to and how warm it is inside, setting it, its mode (обогрев,
+# охлаждение, выключено ...), and its fan. Setting it is a version of Set the
+# temperature, whose other sets a thermostat by name, through Home
+# Assistant's intent.
+#
+# Modes are the hvac_modes list's and fan modes the fan_modes list's, Home
+# Assistant's words for them said in Russian, matched to the thermostat's own
+# by their words (supports). Degrees are said with their noun's form (1
+# градус, 2-4 градуса, 5 градусов; a fraction, градуса), in the nominative,
+# as Piper reads a number written in digits: "Термостат на 22 градуса".
 title: Climate
 icon: mdi:thermostat
 
-# What the versions add to a command (merged into them with <<).
+# Commands shown together in Add a command: each one's topic.
+topics:
+  thermostat: {title: Thermostat, icon: mdi:thermostat}
+
+# What the commands share (merged into them with <<, or as a whole).
 shared:
   device: &device
     names:
@@ -10,14 +25,70 @@ shared:
       area: {count: 1}
     # A room with the device picks it out: the one of that name there.
     combinations: [[entity], [entity, area]]
+  needs: &needs
+    - Set the home's thermostat in Settings, or give it one of its own
+      (its implied target).
+  # Warmer or cooler by slots.step degrees Celsius -- 1.8 times as many,
+  # rounded, on a thermostat in Fahrenheit (its highest above 50) -- within
+  # its limits: the temperature it keeps, or in heat and cool mode both ends.
+  # Off, or keeping none, it says so.
+  temperature_step: &temperature_step
+    - variables:
+        thermostat: "{{ slots.entity[0] }}"
+        by: >-
+          {{ ((slots.step | float) * (1.8 if (state_attr(thermostat, 'max_temp') or 0) | float > 50 else 1)) | round(0) }}
+        lowest: "{{ state_attr(thermostat, 'min_temp') | float(-1000) }}"
+        highest: "{{ state_attr(thermostat, 'max_temp') | float(1000) }}"
+        kept: "{{ state_attr(thermostat, 'temperature') }}"
+        low: "{{ state_attr(thermostat, 'target_temp_low') }}"
+        high: "{{ state_attr(thermostat, 'target_temp_high') }}"
+        is_off: {outcome: "off"}
+        keeps_none: {outcome: keeps_none}
+    - if: "{{ is_state(thermostat, 'off') }}"
+      then:
+        - stop: The thermostat is off
+          response_variable: is_off
+    - if: "{{ kept is number }}"
+      then:
+        - variables:
+            changed: {to: "{{ [[kept + by, lowest] | max, highest] | min }}"}
+        - action: climate.set_temperature
+          target:
+            entity_id: "{{ thermostat }}"
+          data:
+            temperature: "{{ changed.to }}"
+        - stop: Changed the temperature
+          response_variable: changed
+    - if: "{{ low is number and high is number }}"
+      then:
+        - variables:
+            changed: {low: "{{ [low + by, lowest] | max }}", high: "{{ [high + by, highest] | min }}"}
+        - action: climate.set_temperature
+          target:
+            entity_id: "{{ thermostat }}"
+          data:
+            target_temp_low: "{{ changed.low }}"
+            target_temp_high: "{{ changed.high }}"
+        - stop: Changed the temperatures
+          response_variable: changed
+    - stop: The thermostat keeps no temperature
+      response_variable: keeps_none
+  # What a step says when it changed nothing.
+  temperature_said: &temperature_said
+    "off": Термостат выключен.
+    keeps_none: Термостат сейчас не держит температуру.
 
 commands:
+  # The thermostat (the home's, or one of its own), or a thermostat by name
+  # (Home Assistant's intent). Also the heating: "поставь отопление на 22
+  # градуса", "сделай температуру двадцать".
   set_temperature:
     title: Set the temperature
+    topic: thermostat
     icon: mdi:thermometer
     description: изменить температуру
     supports: temperature
-    require: [[температуру, температура, градусов, градуса, градус, отопление, обогрев]]
+    require: [[температуру, температура, градусов, градуса, градус, отопление, обогрев, термостат, термостата]]
     optional: [[поставь, установи, сделай, выставь, измени, подними, опусти, включи],
                [температуру, отопление, обогрев, термостат], [градусов, градуса, градус], [до]]
     # A question about degrees is not a setting: "сколько градусов по Цельсию
@@ -34,19 +105,35 @@ commands:
       done:
         brief: Температура изменена.
         specific: >-
-          {%- set t = slots.temperature -%}
+          {%- set t = slots.temperature | float -%}
           {%- set n = t | int -%}
           {%- set word = 'градуса' if t != n else ('градус' if n % 10 == 1 and n % 100 != 11 else
             ('градуса' if n % 10 in [2, 3, 4] and (n % 100 < 12 or n % 100 > 14) else 'градусов')) -%}
-          {%- set said = (t | string | replace('.', ',')) ~ ' ' ~ word -%}
-          {%- if slots.entity -%}
-          {{ names.get(slots.entity[0], state_attr(slots.entity[0], 'friendly_name')) }}: установлено {{ said }}.
-          {%- else -%}
-          Установлено {{ said }} {{ place.said }}.
-          {%- endif -%}
+          {{ names.get(slots.entity[0], state_attr(slots.entity[0], 'friendly_name')) }}: установлено
+          {{ ((n if t == n else t) | string | replace('.', ',')) }} {{ word }}.
+    formerly: [set_thermostat]
     variants:
       here:
-        title: Set the temperature in this satellite's area
+        title: Set the thermostat
+        description: установить термостат на температуру
+        intent: null
+        home: climate
+        action:
+          - action: climate.set_temperature
+            target:
+              entity_id: "{{ slots.entity }}"
+            data:
+              temperature: "{{ slots.temperature }}"
+        response:
+          done:
+            brief: Термостат установлен.
+            specific: >-
+              {%- set t = slots.temperature | float -%}
+              {%- set n = t | int -%}
+              {%- set word = 'градуса' if t != n else ('градус' if n % 10 == 1 and n % 100 != 11 else
+                ('градуса' if n % 10 in [2, 3, 4] and (n % 100 < 12 or n % 100 > 14) else 'градусов')) -%}
+              Термостат установлен на {{ ((n if t == n else t) | string | replace('.', ',')) }} {{ word }}.
+        needs: *needs
       device:
         <<: *device
         title: Set the temperature of a thermostat by name
@@ -56,3 +143,222 @@ commands:
         combinations: [[entity, temperature], [entity, area, temperature]]
         needs:
           - Add names for the thermostats it may set (Names page).
+
+  thermostat:
+    title: Ask the thermostat
+    topic: thermostat
+    icon: mdi:thermostat
+    description: узнать, на что установлен термостат и сколько градусов дома
+    examples: ["на (что|сколько) (установлен|поставлен|настроен) термостат", "сколько (стоит|показывает) [на] термостате",
+               "какая [сейчас] температура (дома|в доме|в квартире)", "сколько градусов (дома|в доме|в квартире)",
+               "(тепло|холодно) ли дома"]
+    require: [[термостат, термостате, термостата, дома, в доме, в квартире]]
+    optional: [[какая, какой, сколько, на что, на сколько, как], [температура, градусов, установлен, поставлен, настроен,
+               стоит, показывает, сейчас, тепло, холодно, жарко, ли]]
+    exclude: [поставь, установи, сделай, выставь, измени, подними, опусти, режим, режиме, вентилятор, вентилятора]
+    home: climate
+    response: >-
+      {%- macro deg(t) -%}
+      {%- set n = t | round | int -%}{%- set a = n | abs -%}
+      {{ n }} {{ 'градус' if a % 10 == 1 and a % 100 != 11 else ('градуса' if a % 10 in [2, 3, 4] and (a % 100 < 12 or a % 100 > 14) else 'градусов') }}
+      {%- endmacro -%}
+      {%- set e = slots.entity[0] -%}
+      {%- set inside = state_attr(e, 'current_temperature') -%}
+      {%- set to = state_attr(e, 'temperature') -%}
+      {%- set low = state_attr(e, 'target_temp_low') -%}
+      {%- set high = state_attr(e, 'target_temp_high') -%}
+      {%- set mode = states(e) -%}
+      {%- set modes = {'heat': 'обогрев', 'cool': 'охлаждение', 'heat_cool': 'обогрев и охлаждение', 'auto': 'авто',
+        'dry': 'осушение', 'fan_only': 'только вентилятор'} -%}
+      {{ "Дома " ~ deg(inside) ~ ". " if inside is not none else "" }}
+      {%- if mode == 'off' -%}Термостат выключен.
+      {%- elif to is not none -%}Термостат установлен на {{ deg(to) }}.
+      {%- elif low is not none and high is not none -%}Термостат держит температуру: нижняя граница {{ low | round | int }}, верхняя {{ deg(high) }}.
+      {%- else -%}Термостат в режиме «{{ modes.get(mode, mode | replace('_', ' ')) }}».
+      {%- endif -%}
+    needs: *needs
+
+  heat_up:
+    title: Turn up the heat
+    topic: thermostat
+    icon: mdi:thermometer-chevron-up
+    description: сделать теплее
+    # "Сделай теплее", "подними температуру", "прибавь отопление"; to a
+    # number, it's Set the thermostat (Set the temperature's version).
+    examples: ["[сделай|сделайте] [немного|чуть] (теплее|потеплее)"]
+    require: [[подними, поднимите, прибавь, прибавьте, увеличь, увеличьте, повысь, повысьте],
+              [температуру, отопление, обогрев, термостат]]
+    optional: [[немного, чуть, чуть-чуть, еще]]
+    exclude: [какая, какой, сколько, ли, громкость, звук, яркость, свет]
+    home: climate
+    slots: {step: 1}
+    action: *temperature_step
+    # Not seen at once: what it's set to now, said.
+    verbosity: specific
+    response:
+      <<: *temperature_said
+      done:
+        brief: Температура повышена.
+        specific: >-
+          {%- macro deg(t) -%}
+          {%- set x = t | default(0, true) | float -%}{%- set n = x | int -%}{%- set a = n | abs -%}
+          {{ ((n if x == n else x | round(1)) | string | replace('.', ',')) }} {{ 'градуса' if x != n else ('градус'
+          if a % 10 == 1 and a % 100 != 11 else ('градуса' if a % 10 in [2, 3, 4] and (a % 100 < 12 or a % 100 > 14) else 'градусов')) }}
+          {%- endmacro -%}
+          Температура повышена: {{ ('термостат на ' ~ deg(result.to) if result.to is defined
+          else 'нижняя граница ' ~ deg(result.low) ~ ', верхняя ' ~ deg(result.high)) }}.
+    needs: *needs
+
+  heat_down:
+    title: Turn down the heat
+    topic: thermostat
+    icon: mdi:thermometer-chevron-down
+    description: сделать прохладнее
+    examples: ["[сделай|сделайте] [немного|чуть] (прохладнее|похолоднее|холоднее)"]
+    require: [[опусти, опустите, убавь, убавьте, уменьши, уменьшите, понизь, понизьте],
+              [температуру, отопление, обогрев, термостат]]
+    optional: [[немного, чуть, чуть-чуть, еще]]
+    exclude: [какая, какой, сколько, ли, громкость, звук, яркость, свет]
+    home: climate
+    slots: {step: -1}
+    action: *temperature_step
+    verbosity: specific
+    response:
+      <<: *temperature_said
+      done:
+        brief: Температура понижена.
+        specific: >-
+          {%- macro deg(t) -%}
+          {%- set x = t | default(0, true) | float -%}{%- set n = x | int -%}{%- set a = n | abs -%}
+          {{ ((n if x == n else x | round(1)) | string | replace('.', ',')) }} {{ 'градуса' if x != n else ('градус'
+          if a % 10 == 1 and a % 100 != 11 else ('градуса' if a % 10 in [2, 3, 4] and (a % 100 < 12 or a % 100 > 14) else 'градусов')) }}
+          {%- endmacro -%}
+          Температура понижена: {{ ('термостат на ' ~ deg(result.to) if result.to is defined
+          else 'нижняя граница ' ~ deg(result.low) ~ ', верхняя ' ~ deg(result.high)) }}.
+    needs: *needs
+
+  thermostat_mode:
+    title: Ask the thermostat's mode
+    topic: thermostat
+    icon: mdi:thermostat
+    description: узнать, в каком режиме термостат и что он делает
+    examples: ["в каком режиме [работает|стоит] термостат", "какой режим [у] термостата", "что [сейчас] делает термостат",
+               "термостат (греет|охлаждает|работает)"]
+    require: [[термостат, термостата, термостате], [режим, режиме, режима, делает, греет, охлаждает, работает]]
+    optional: [[какой, каком, что, ли], [у, сейчас, стоит]]
+    exclude: [поставь, установи, переключи, переведи, включи, выключи, смени, измени, вентилятор, вентилятора]
+    home: climate
+    response: >-
+      {%- set e = slots.entity[0] -%}
+      {%- set modes = {'heat': 'обогрев', 'cool': 'охлаждение', 'heat_cool': 'обогрев и охлаждение', 'auto': 'авто',
+        'dry': 'осушение', 'fan_only': 'только вентилятор'} -%}
+      {%- set doing = {'heating': 'Сейчас греет.', 'cooling': 'Сейчас охлаждает.', 'drying': 'Сейчас осушает.',
+        'fan': 'Сейчас работает вентилятор.', 'idle': 'Сейчас ждёт.', 'preheating': 'Сейчас прогревается.',
+        'defrosting': 'Сейчас размораживается.'} -%}
+      {%- set mode = states(e) -%}
+      {%- set action = state_attr(e, 'hvac_action') -%}
+      {%- if mode == 'off' -%}Термостат выключен.
+      {%- else -%}Термостат в режиме «{{ modes.get(mode, mode | replace('_', ' ')) }}».
+      {%- if action and action != 'off' %} {{ doing.get(action, 'Сейчас: ' ~ action | replace('_', ' ') ~ '.') }}{% endif -%}
+      {%- endif -%}
+    needs: *needs
+
+  set_thermostat_mode:
+    title: Set the thermostat's mode
+    topic: thermostat
+    icon: mdi:thermostat
+    description: переключить термостат на обогрев, охлаждение, авто или выключить
+    # "Переключи термостат на обогрев", "выключи термостат" ("выключи" is
+    # the hvac_modes list's off), "поставь термостат в режим охлаждения".
+    require: [[термостат, термостата, термостату]]
+    optional: [[поставь, переключи, переведи, установи, смени, измени, включи], [режим, в режим, на режим], [на]]
+    exclude: [какой, каком, что, ли, вентилятор, вентилятора]
+    lists:
+      mode: {list: hvac_modes}
+    home: climate
+    supports: {hvac_mode: mode}
+    action:
+      - action: climate.set_hvac_mode
+        target:
+          entity_id: "{{ slots.entity }}"
+        data:
+          hvac_mode: "{{ slots.mode }}"
+    verbosity: specific
+    response:
+      done:
+        brief: Термостат переключён.
+        specific: >-
+          {%- set modes = {'heat': 'обогрев', 'cool': 'охлаждение', 'heat_cool': 'обогрев и охлаждение', 'auto': 'авто',
+            'dry': 'осушение', 'fan_only': 'только вентилятор'} -%}
+          {%- if slots.mode == 'off' -%}Термостат выключен.
+          {%- else -%}Термостат переключён в режим «{{ modes.get(slots.mode, slots.mode) }}».
+          {%- endif -%}
+    needs: *needs
+
+  thermostat_fan:
+    title: Ask the thermostat's fan
+    topic: thermostat
+    icon: mdi:fan
+    description: узнать, как работает вентилятор термостата
+    examples: ["какой [сейчас] режим вентилятора [у термостата]", "как работает вентилятор термостата",
+               "на (что|какой режим) (установлен|поставлен) вентилятор термостата"]
+    require: [[режим вентилятора, вентилятор термостата, вентилятора термостата, скорость вентилятора]]
+    optional: [[какой, какая, как, на что, на какой], [сейчас, у, стоит, установлен, поставлен, работает, режим]]
+    exclude: [поставь, установи, переключи, переведи, включи, выключи, смени, измени]
+    home: climate
+    supports: fan_mode
+    response: >-
+      {%- set words = {'auto': 'авто', 'on': 'включён', 'off': 'выключен', 'low': 'низкая скорость',
+        'medium': 'средняя скорость', 'middle': 'средняя скорость', 'high': 'высокая скорость',
+        'circulate': 'циркуляция', 'quiet': 'тихий режим', 'diffuse': 'рассеянный поток', 'focus': 'направленный поток'} -%}
+      {%- set mode = (state_attr(slots.entity[0], 'fan_mode') or '') | lower | replace('_', ' ') -%}
+      {%- set ns = namespace(said=[]) -%}
+      {%- for part in mode.split() -%}
+      {%- set ns.said = ns.said + [words.get(part, part)] -%}
+      {%- endfor -%}
+      {%- if not mode -%}Режим вентилятора термостата не задан.
+      {%- else -%}Вентилятор термостата: {{ ns.said | join(', ') }}.
+      {%- endif -%}
+    needs: *needs
+
+  set_thermostat_fan:
+    title: Set the thermostat's fan
+    topic: thermostat
+    icon: mdi:fan
+    description: изменить режим вентилятора термостата
+    # "Поставь вентилятор термостата на авто", "включи вентилятор термостата"
+    # ("включи" is the fan_modes list's on). A fan alone is a fan's: "включи
+    # вентилятор".
+    require: [[режим вентилятора, вентилятор термостата, вентилятора термостата, скорость вентилятора]]
+    optional: [[поставь, переключи, переведи, установи, смени, измени], [режим, на, в]]
+    exclude: [какой, какая, как, что, ли]
+    lists:
+      mode: {list: fan_modes}
+    home: climate
+    supports: {fan_mode: mode}
+    action:
+      - action: climate.set_fan_mode
+        target:
+          entity_id: "{{ slots.entity }}"
+        data:
+          fan_mode: "{{ slots.mode }}"
+    verbosity: specific
+    response:
+      done:
+        brief: Вентилятор термостата настроен.
+        specific: >-
+          {%- set words = {'auto': 'авто', 'on': 'включён', 'off': 'выключен', 'low': 'низкая скорость',
+            'medium': 'средняя скорость', 'middle': 'средняя скорость', 'high': 'высокая скорость',
+            'circulate': 'циркуляция'} -%}
+          {%- set mode = slots.mode | lower | replace('_', ' ') -%}
+          {%- set ns = namespace(said=[]) -%}
+          {%- for part in mode.split() -%}
+          {%- set ns.said = ns.said + [words.get(part, part)] -%}
+          {%- endfor -%}
+          {%- if mode in ['on', 'off'] -%}Вентилятор термостата {{ ns.said[0] }}.
+          {%- else -%}Вентилятор термостата: {{ ns.said | join(', ') }}.
+          {%- endif -%}
+    needs:
+      - Set the home's thermostat in Settings, or give it one of its own
+        (its implied target). Its fan modes are matched by their words to the
+        fan_modes list's (Names page).

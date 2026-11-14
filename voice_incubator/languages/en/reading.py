@@ -20,6 +20,10 @@ ARTICLES = ("the",)
 """Articles: after PLACE_BEFORE, before a place; text of nothing but these
 is no text."""
 
+WHEN_STARTS = ("in",)
+"""Words of PLACE_BEFORE and ARTICLES an alarm's time or a reminder may
+start with, kept there: "in 8 hours" (voice_incubator/engine.py, free text)."""
+
 # ------------------------------------------------------------------- music
 
 MUSIC_GENERIC = {

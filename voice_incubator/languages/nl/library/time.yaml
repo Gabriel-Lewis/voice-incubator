@@ -1,21 +1,31 @@
-# Date and time (Dutch), as the English library's time.yaml.
+# Date and time (Dutch), as the English library's time.yaml: the time and the
+# date now. A time from now ("hoe laat is het over 45 minuten") is a
+# question: the clock skill's.
 title: Date and time
 icon: mdi:clock-outline
+
+# Commands shown together in Add a command: each one's topic.
+topics:
+  date_and_time: {title: Date and time, icon: mdi:clock-outline}
 
 commands:
   what_time:
     title: What time is it
+    topic: date_and_time
     icon: mdi:clock-outline
     description: weten hoe laat het is
     examples: ["hoe laat is het [nu]"]
     require: [[hoe laat, tijd]]
     optional: [[is het], [nu], [wat is de]]
-    # Other times: "hoe laat gaat de winkel open", "hoe laat is het in Tokio".
-    exclude: [gaat, open, dicht, sluit, na, voor, tot, in]
+    # Other times: "hoe laat gaat de winkel open", "hoe laat is het in Tokio",
+    # "hoe laat gaat mijn wekker", "hoe laat is het over 45 minuten" (that one
+    # is answered as a question).
+    exclude: [gaat, open, dicht, sluit, na, voor, tot, in, over, wekker, wekkers, wordt, zal, minuut, minuten, kwartier]
     response: "Het is {{ now().hour }} uur{{ (' ' ~ now().minute) if now().minute else '' }}."
 
   what_date:
     title: What's the date
+    topic: date_and_time
     icon: mdi:calendar-today
     description: de datum weten
     examples: ["welke dag is het [vandaag]", "wat is de datum [vandaag]", "welke datum is het"]

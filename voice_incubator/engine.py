@@ -61,7 +61,7 @@ from adapt_ctc.wake import LEAD, WakeVerifier
 
 from adapt_ctc.config import ConfigError, _phrase
 
-from . import compound, context, kaldi_mode, languages, skills, triggers
+from . import alarms, compound, context, kaldi_mode, languages, skills, triggers
 from .commands import (
     DYNAMIC_LISTS, NAME_SLOTS, Behavior, Command, base_config, command_of, match_slots, never_mind, says,
 )
@@ -1736,7 +1736,7 @@ class Engine:
             config = self.recognizer.config if self.recognizer is not None else None
             filler = list(config.filler) if config is not None else []
             text = without_place(text, places, filler, config.language if config is not None else None)
-            text = " ".join(trimmed(text.split(), self._edge_words(decision.intent.intent, wildcard))).strip()
+            text = " ".join(trimmed(text.split(), self._edge_words(decision.intent.intent, wildcard, decision.behavior))).strip()
         else:
             use = uses[0]
             start = use.hit.start * frame_seconds - frame_seconds
@@ -1746,7 +1746,7 @@ class Engine:
             # end a frame late -- and at the text's edge, a keyword, filler or
             # what says a place follows is no text, as the CTC matcher reads
             # it ("pizza for", "jazz in").
-            edges = self._edge_words(decision.intent.intent, wildcard)
+            edges = self._edge_words(decision.intent.intent, wildcard, decision.behavior)
             inside = trimmed(within(words, start, end), edges)
             # A keyword it misspelled is the keyword's, not the text's: "and
             # pick up groceries" for "add pick up groceries", the transducer's
@@ -1759,10 +1759,13 @@ class Engine:
                 decision.text_from_tdt[slot] = str(decision.slots[slot])
             decision.slots[slot] = text
 
-    def _edge_words(self, intent: str, wildcard: dict[str, Any]) -> set[str]:
+    def _edge_words(self, intent: str, wildcard: dict[str, Any], behavior: Any = None) -> set[str]:
         """Words free text does not start or end with: its intent's keywords
         and the matcher's fillers and name cues, and the language's words
-        before a place ("in", "the")."""
+        before a place ("in", "the") -- but those an alarm's or reminder's
+        when may start with (its language's ``WHEN_STARTS``: "in 8 hours",
+        "dans huit heures"), and an announcement's article ("la cena está
+        lista")."""
         words = {str(k).lower() for k in [*(wildcard.get("after") or []), *(wildcard.get("before") or [])]}
         config = self.recognizer.config if self.recognizer is not None else None
         if config is not None:
@@ -1770,7 +1773,12 @@ class Engine:
             phrases = [p for group in (spec.require + spec.optional if spec else ()) for p in group]
             words |= {part for phrase in [*phrases, *config.filler, *config.name_cues] for part in phrase.split()}
         read = languages.reading()
-        return words | set(read.PLACE_BEFORE) | set(read.ARTICLES)
+        edges = words | set(read.PLACE_BEFORE) | set(read.ARTICLES)
+        if behavior is not None and behavior.timer in alarms.OPERATIONS:
+            edges -= set(read.WHEN_STARTS)
+        if behavior is not None and behavior.announce:
+            edges -= set(read.ARTICLES)
+        return edges
 
     # --------------------------------------------------------------- hints
 

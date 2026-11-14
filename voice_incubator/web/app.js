@@ -765,7 +765,7 @@ function agentPanel() {
     const byKey = Object.fromEntries(catalog.voices.map((v) => [v.key, v]));
     const piper = h("select", { "aria-label": "Built-in voice" },
       h("option", { value: "" }, "The area's or the whole home's"),
-      Object.entries(PIPER_REGIONS).map(([code, label]) => h("optgroup", { label },
+      Object.entries(catalog.regions || {}).map(([code, label]) => h("optgroup", { label },
         catalog.voices.filter((v) => v.language === code).map((v) => h("option", { value: v.key, selected: v.key === own.voice },
           `${v.name}, ${v.quality}${v.here ? "" : ` — ${mb(v.size)} to download`}`)))));
     const speaker = h("select", { "aria-label": "Speaker" });
@@ -3000,7 +3000,6 @@ async function pagePronunciations() {
 // The built-in voice: Piper's, downloaded the first time it is used. What a
 // reply is said in without a text-to-speech entity, and announcements.
 const PIPER_LABELS = { length_scale: "Length scale", noise_scale: "Noise scale", noise_w_scale: "Noise W scale", volume: "Volume" };
-const PIPER_REGIONS = { en_US: "US English", en_GB: "British English" };
 
 function piperPanel() {
   const panel = h("div", { class: "panel" }, heading("h2", "Built-in voice"), h("p", { class: "muted small" }, "Loading…"));
@@ -3014,7 +3013,7 @@ function fillPiperPanel(panel, catalog) {
   const settings = piper.settings || {};
   const byKey = Object.fromEntries(catalog.voices.map((v) => [v.key, v]));
   const mb = (bytes) => `${Math.round(bytes / 1e6)} MB`;
-  const voice = h("select", {}, Object.entries(PIPER_REGIONS).map(([code, label]) => h("optgroup", { label },
+  const voice = h("select", {}, Object.entries(catalog.regions || {}).map(([code, label]) => h("optgroup", { label },
     catalog.voices.filter((v) => v.language === code).map((v) => h("option", { value: v.key, selected: v.key === (piper.voice || catalog.default) },
       `${v.name}, ${v.quality}${v.speakers.length ? ` (${v.speakers.length} speakers)` : ""}${v.here ? "" : ` — ${mb(v.size)} to download`}`)))));
   const speaker = h("select", {});
@@ -5170,7 +5169,7 @@ function areaSettingsPanel(area) {
     const instruments = status.instruments || [];
     const home = settings.home || {};
     const mb = (bytes) => `${Math.round(bytes / 1e6)} MB`;
-    const voiceName = (key) => (voices[key] ? `${voices[key].name} (${PIPER_REGIONS[voices[key].language] || voices[key].language})` : key);
+    const voiceName = (key) => (voices[key] ? `${voices[key].name} (${(catalog.regions || {})[voices[key].language] || voices[key].language})` : key);
     const select = (options, value, onChange) => h("select", { onchange: (e) => onChange(e.target.value) },
       options.map(([v, text]) => h("option", { value: v, selected: String(v) === String(value) }, text)));
     const entity = (domain) => (value, onChange) => entityField(domain, value || null, (v) => { if (v) onChange(v); });
@@ -5178,7 +5177,7 @@ function areaSettingsPanel(area) {
       const chosen = voices[value];
       return h("div", { class: "row" },
         h("select", { onchange: (e) => { const v = voices[e.target.value]; onChange(e.target.value, { speaker: v && v.speakers.length ? v.speakers[0] : null }); } },
-          Object.entries(PIPER_REGIONS).map(([code, label]) => h("optgroup", { label },
+          Object.entries(catalog.regions || {}).map(([code, label]) => h("optgroup", { label },
             catalog.voices.filter((v) => v.language === code).map((v) => h("option", { value: v.key, selected: v.key === value },
               `${v.name}, ${v.quality}${v.speakers.length ? ` (${v.speakers.length} speakers)` : ""}${v.here ? "" : ` — ${mb(v.size)} to download`}`))))),
         chosen && chosen.speakers.length && own.voice === value

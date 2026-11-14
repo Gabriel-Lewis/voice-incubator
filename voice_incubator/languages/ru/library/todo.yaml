@@ -1,15 +1,26 @@
-# Lists (Russian), as the English library's todo.yaml.
+# Lists (Russian), as the English library's todo.yaml: the shopping list and
+# the to-do list -- adding to them, checking off, taking off, and what's on
+# them. A list is said in the case the sentence asks for: "добавь в список
+# покупок", "убери из списка покупок", "отметь в списке покупок"; someone's
+# own with "мой" ("в мой список дел"), which is otherwise filler.
 title: Lists
 icon: mdi:format-list-checks
+
+# Commands shown together in Add a command: each one's topic.
+topics:
+  shopping_list: {title: Shopping list, icon: mdi:cart-outline}
+  todo_list: {title: To-do list, icon: mdi:format-list-checks}
 
 commands:
   shopping_list_add:
     title: Add to the shopping list
+    topic: shopping_list
     icon: mdi:cart-plus
     description: добавить что-нибудь в список покупок
     # "Добавь молоко в список покупок": what is added as it was said.
-    require: [[добавь, добавьте, внеси, внесите, запиши, запишите], [список покупок, список продуктов, покупки]]
+    require: [[добавь, добавьте, внеси, внесите, запиши, запишите], [список покупок, список продуктов, покупки, список]]
     optional: [[в]]
+    exclude: [дел, задач]
     wildcard:
       slot: item
       after: [добавь, добавьте, внеси, внесите, запиши, запишите]
@@ -17,8 +28,8 @@ commands:
       bounded: true
       max_words: 8
     home: shopping_list
-    # Each item said ("oranges and bananas": two), unless the list has one
-    # called that whole ("mac and cheese"); one the list has already isn't
+    # Each item said ("яблоки и бананы": two), unless the list has one
+    # called that whole ("хлеб и соль"); one the list has already isn't
     # added again (already_on_list).
     adds_to_list: {slot: item, list: entity, each: true}
     action:
@@ -45,38 +56,141 @@ commands:
       done:
         brief: Добавлено в список покупок.
         specific: "Добавлено в список покупок: {{ slots.item }}."
+        verbose: >-
+          {%- if added -%}
+          Добавлено в список покупок: {{ added }}{{ '; снова в списке: ' ~ put_back if put_back }}.
+          {%- else -%}
+          Снова в списке покупок: {{ put_back }}.
+          {%- endif -%}
 
   shopping_list_remove:
     title: Take off the shopping list
+    topic: shopping_list
     icon: mdi:cart-minus
     description: убрать что-нибудь из списка покупок
-    require: [[удали, удалите, убери, уберите, вычеркни, вычеркните], [списка покупок, списка продуктов, покупок]]
+    # Gone from the list; checking it off (done, and kept: "вычеркни") is
+    # Check off the shopping list. The items said are ones on the list:
+    # "тест три" is "тест 3"; "яблоки и бананы" two of them (items), unless
+    # one is called that.
+    require: [[удали, удалите, убери, уберите], [списка покупок, списка продуктов, покупок, списка]]
     optional: [[из]]
+    exclude: [дел, задач]
     wildcard:
       slot: item
-      after: [удали, удалите, убери, уберите, вычеркни, вычеркните]
+      after: [удали, удалите, убери, уберите]
       before: [из]
       bounded: true
-      max_words: 5
+      max_words: 8
+    on_list: {item: entity}
     home: shopping_list
     action:
       action: todo.remove_item
       target:
         entity_id: "{{ slots.entity }}"
       data:
-        item: "{{ slots.item }}"
+        item: "{{ items }}"
     verbosity: specific
     response:
       done:
         brief: Удалено из списка покупок.
         specific: "Удалено из списка покупок: {{ slots.item }}."
+    needs:
+      - Set the home's shopping list in Settings, or give it one of its
+        own (its implied target).
+
+  shopping_list_check:
+    title: Check off the shopping list
+    topic: shopping_list
+    icon: mdi:cart-check
+    description: отметить что-нибудь в списке покупок как купленное
+    # Done, and kept on the list as such: "вычеркни молоко из списка",
+    # "отметь яйца в списке покупок", "отметь хлеб как купленный в списке",
+    # "вычеркни яблоки и бананы из списка покупок" (each of the items).
+    require: [[отметь, отметьте, вычеркни, вычеркните, пометь, пометьте],
+              [списке покупок, списка покупок, список покупок, списке продуктов, списка продуктов, списке, списка]]
+    optional: [[в, из], [как купленное, как купленные, как купленный, купленным, купленными]]
+    exclude: [дел, задач]
+    wildcard:
+      slot: item
+      after: [отметь, отметьте, вычеркни, вычеркните, пометь, пометьте]
+      before: [в, из, как купленное, как купленные, как купленный, купленным, купленными]
+      bounded: true
+      max_words: 8
+    on_list: {item: entity}
+    home: shopping_list
+    action:
+      repeat:
+        for_each: "{{ items }}"
+        sequence:
+          - action: todo.update_item
+            target:
+              entity_id: "{{ slots.entity }}"
+            data:
+              item: "{{ repeat.item }}"
+              status: completed
+    verbosity: specific
+    response:
+      done:
+        brief: Отмечено.
+        specific: "Отмечено в списке покупок: {{ slots.item }}."
+    needs:
+      - Set the home's shopping list in Settings, or give it one of its
+        own (its implied target).
+
+  shopping_list_items:
+    title: What's on the shopping list
+    topic: shopping_list
+    icon: mdi:cart-outline
+    description: сказать, что в списке покупок
+    # What is still to get; what was checked off is left out.
+    examples: ["что [есть] в [моем|нашем] списке покупок", "что (нужно|надо) купить [в магазине]",
+               "(прочитай|прочти) [мне] список покупок"]
+    require: [[что, прочитай, прочти, зачитай, огласи, скажи, покажи],
+              [списке покупок, список покупок, списке продуктов, список продуктов]]
+    optional: [[есть, нашем], [мне, нам]]
+    exclude: [добавь, добавьте, внеси, запиши, удали, убери, вычеркни, отметь, пометь]
+    home: shopping_list
+    action:
+      - variables:
+          shopping: "{{ slots.entity[0] }}"
+      - action: todo.get_items
+        target:
+          entity_id: "{{ shopping }}"
+        data:
+          status: needs_action
+        response_variable: found
+      - variables:
+          reply:
+            listed: "{{ found[shopping]['items'] | map(attribute='summary') | list }}"
+      - stop: Read the list
+        response_variable: reply
+    response:
+      done: >-
+        {%- set listed = result.listed or [] -%}
+        {%- set count = listed | count -%}
+        {%- set things = 'пункт' if count % 10 == 1 and count % 100 != 11 else
+          ('пункта' if count % 10 in [2, 3, 4] and (count % 100 < 12 or count % 100 > 14) else 'пунктов') -%}
+        {%- if count == 0 -%}
+        Список покупок пуст.
+        {%- elif count == 1 -%}
+        В списке покупок: {{ listed[0] }}.
+        {%- elif count > 8 -%}
+        В списке покупок {{ count }} {{ things }}: {{ listed[:5] | join(', ') }} и ещё {{ count - 5 }}.
+        {%- else -%}
+        В списке покупок: {{ listed[:-1] | join(', ') }} и {{ listed[-1] }}.
+        {%- endif -%}
+    needs:
+      - Set the home's shopping list in Settings, or give it one of its
+        own (its implied target).
 
   todo_add:
     title: Add to the to-do list
+    topic: todo_list
     icon: mdi:format-list-checks
     description: добавить задачу в список дел
     require: [[добавь, добавьте, запиши, запишите, внеси, внесите], [список дел, список задач, задачи, дела]]
     optional: [[в]]
+    exclude: [мой, мои, моих, мою]
     wildcard:
       slot: item
       after: [добавь, добавьте, запиши, запишите, внеси, внесите]
@@ -111,6 +225,291 @@ commands:
       done:
         brief: Добавлено в список дел.
         specific: "Добавлено в список дел: {{ slots.item }}."
+        verbose: "{{ ('Добавлено в список дел: ' ~ added) if added else ('Снова в списке дел: ' ~ put_back) }}."
     needs:
-      - Set the home's to-do list on the Settings page, or give it one of its
+      - Set the home's to-do list in Settings, or give it one of its
         own (its implied target).
+
+  todo_remove:
+    title: Take off the to-do list
+    topic: todo_list
+    icon: mdi:playlist-remove
+    description: убрать задачу из списка дел
+    # Gone from the list; checking it off (done, and kept) is Check off the
+    # to-do list. The items said are ones on the list, as for the shopping
+    # list's.
+    require: [[удали, удалите, убери, уберите], [списка дел, списка задач, дел, задач]]
+    optional: [[из]]
+    wildcard:
+      slot: item
+      after: [удали, удалите, убери, уберите]
+      before: [из]
+      bounded: true
+      max_words: 8
+    on_list: {item: entity}
+    home: todo_list
+    action:
+      action: todo.remove_item
+      target:
+        entity_id: "{{ slots.entity }}"
+      data:
+        item: "{{ items }}"
+    verbosity: specific
+    response:
+      done:
+        brief: Удалено из списка дел.
+        specific: "Удалено из списка дел: {{ slots.item }}."
+    needs:
+      - Set the home's to-do list in Settings, or give it one of its
+        own (its implied target).
+
+  todo_check:
+    title: Check off the to-do list
+    topic: todo_list
+    icon: mdi:playlist-check
+    description: отметить задачу в списке дел как сделанную
+    # Done, and kept on the list as such: "отметь «позвонить сантехнику» в
+    # списке дел", "отметь налоги и стирку как сделанные в списке дел".
+    require: [[отметь, отметьте, вычеркни, вычеркните, пометь, пометьте],
+              [списке дел, списка дел, список дел, списке задач, списка задач]]
+    optional: [[в, из], [как сделанное, как сделанные, как выполненное, как выполненные, сделанным, выполненным]]
+    wildcard:
+      slot: item
+      after: [отметь, отметьте, вычеркни, вычеркните, пометь, пометьте]
+      before: [в, из, как сделанное, как сделанные, как выполненное, как выполненные, сделанным, выполненным]
+      bounded: true
+      max_words: 8
+    on_list: {item: entity}
+    home: todo_list
+    action:
+      repeat:
+        for_each: "{{ items }}"
+        sequence:
+          - action: todo.update_item
+            target:
+              entity_id: "{{ slots.entity }}"
+            data:
+              item: "{{ repeat.item }}"
+              status: completed
+    verbosity: specific
+    response:
+      done:
+        brief: Отмечено.
+        specific: "Отмечено в списке дел: {{ slots.item }}."
+    needs:
+      - Set the home's to-do list in Settings, or give it one of its
+        own (its implied target).
+
+  todo_items:
+    title: What's on the to-do list
+    topic: todo_list
+    icon: mdi:format-list-bulleted
+    description: сказать, что в списке дел
+    # What is still to do; what was checked off is left out. Someone's own
+    # is What's on my to-do list.
+    examples: ["что [есть] в [нашем] списке дел", "(прочитай|прочти) [мне] [наш] список дел"]
+    require: [[что, прочитай, прочти, зачитай, огласи, скажи, покажи],
+              [списке дел, список дел, списке задач, список задач]]
+    optional: [[есть, наш, нашем], [мне, нам]]
+    exclude: [мой, моем, моих, мои, мою, добавь, удали, убери, вычеркни, отметь, пометь]
+    home: todo_list
+    action:
+      - variables:
+          todo: "{{ slots.entity[0] }}"
+      - action: todo.get_items
+        target:
+          entity_id: "{{ todo }}"
+        data:
+          status: needs_action
+        response_variable: found
+      - variables:
+          reply:
+            listed: "{{ found[todo]['items'] | map(attribute='summary') | list }}"
+      - stop: Read the list
+        response_variable: reply
+    response:
+      done: >-
+        {%- set listed = result.listed or [] -%}
+        {%- set count = listed | count -%}
+        {%- set things = 'пункт' if count % 10 == 1 and count % 100 != 11 else
+          ('пункта' if count % 10 in [2, 3, 4] and (count % 100 < 12 or count % 100 > 14) else 'пунктов') -%}
+        {%- if count == 0 -%}
+        Список дел пуст.
+        {%- elif count == 1 -%}
+        В списке дел: {{ listed[0] }}.
+        {%- elif count > 8 -%}
+        В списке дел {{ count }} {{ things }}: {{ listed[:5] | join(', ') }} и ещё {{ count - 5 }}.
+        {%- else -%}
+        В списке дел: {{ listed[:-1] | join(', ') }} и {{ listed[-1] }}.
+        {%- endif -%}
+    needs:
+      - Set the home's to-do list in Settings, or give it one of its
+        own (its implied target).
+
+  todo_add_mine:
+    title: Add to my to-do list
+    topic: todo_list
+    icon: mdi:account-check-outline
+    description: добавить задачу в мой список дел
+    # The speaker's own (People page); where nobody has one, this one.
+    require: [[добавь, добавьте, запиши, запишите, внеси, внесите],
+              [мой список дел, мой список задач, мои дела, мои задачи, список моих дел, список моих задач]]
+    optional: [[в]]
+    wildcard:
+      slot: item
+      after: [добавь, добавьте, запиши, запишите, внеси, внесите]
+      before: [в]
+      bounded: true
+      max_words: 8
+    home: todo_list
+    mine: todo_list
+    # The whole of it: one the list has already isn't added again
+    # (already_on_list).
+    adds_to_list: {slot: item, list: entity}
+    action:
+      # What isn't on the list is added; what was checked off is checked back on.
+      - repeat:
+          for_each: "{{ items }}"
+          sequence:
+            - action: todo.add_item
+              target:
+                entity_id: "{{ slots.entity }}"
+              data:
+                item: "{{ repeat.item }}"
+      - repeat:
+          for_each: "{{ back }}"
+          sequence:
+            - action: todo.update_item
+              target:
+                entity_id: "{{ slots.entity }}"
+              data:
+                item: "{{ repeat.item }}"
+                status: needs_action
+    verbosity: specific
+    response:
+      done:
+        brief: Добавлено в ваш список дел.
+        specific: "Добавлено в ваш список дел: {{ slots.item }}."
+        verbose: "{{ ('Добавлено в ваш список дел: ' ~ added) if added else ('Снова в вашем списке дел: ' ~ put_back) }}."
+    needs:
+      - Give each person their to-do list (People page). Where nobody has one,
+        it adds to the home's (Settings).
+
+  todo_remove_mine:
+    title: Take off my to-do list
+    topic: todo_list
+    icon: mdi:account-remove-outline
+    description: убрать задачу из моего списка дел
+    # The speaker's own (People page); where nobody has one, this one. The
+    # items said are ones on it, as for the to-do list's.
+    require: [[удали, удалите, убери, уберите],
+              [моего списка дел, моего списка задач, моих дел, моих задач, списка моих дел, списка моих задач]]
+    optional: [[из]]
+    wildcard:
+      slot: item
+      after: [удали, удалите, убери, уберите]
+      before: [из]
+      bounded: true
+      max_words: 8
+    on_list: {item: entity}
+    home: todo_list
+    mine: todo_list
+    action:
+      action: todo.remove_item
+      target:
+        entity_id: "{{ slots.entity }}"
+      data:
+        item: "{{ items }}"
+    verbosity: specific
+    response:
+      done:
+        brief: Удалено из вашего списка дел.
+        specific: "Удалено из вашего списка дел: {{ slots.item }}."
+    needs:
+      - Give each person their to-do list (People page). Where nobody has one,
+        it takes off the home's (Settings).
+
+  todo_check_mine:
+    title: Check off my to-do list
+    topic: todo_list
+    icon: mdi:account-check
+    description: отметить задачу в моём списке дел как сделанную
+    # The speaker's own (People page); where nobody has one, this one. Done,
+    # and kept on the list as such.
+    require: [[отметь, отметьте, вычеркни, вычеркните, пометь, пометьте],
+              [моем списке дел, моего списка дел, моем списке задач, моего списка задач, списке моих дел, списка моих дел]]
+    optional: [[в, из], [как сделанное, как сделанные, как выполненное, как выполненные, сделанным, выполненным]]
+    wildcard:
+      slot: item
+      after: [отметь, отметьте, вычеркни, вычеркните, пометь, пометьте]
+      before: [в, из, как сделанное, как сделанные, как выполненное, как выполненные, сделанным, выполненным]
+      bounded: true
+      max_words: 8
+    on_list: {item: entity}
+    home: todo_list
+    mine: todo_list
+    action:
+      repeat:
+        for_each: "{{ items }}"
+        sequence:
+          - action: todo.update_item
+            target:
+              entity_id: "{{ slots.entity }}"
+            data:
+              item: "{{ repeat.item }}"
+              status: completed
+    verbosity: specific
+    response:
+      done:
+        brief: Отмечено.
+        specific: "Отмечено в вашем списке дел: {{ slots.item }}."
+    needs:
+      - Give each person their to-do list (People page). Where nobody has one,
+        it checks off the home's (Settings).
+
+  todo_items_mine:
+    title: What's on my to-do list
+    topic: todo_list
+    icon: mdi:account-details-outline
+    description: сказать, что в моём списке дел
+    # The speaker's own (People page); where nobody has one, the home's. What
+    # is still to do; what was checked off is left out.
+    examples: ["что [есть] в моем списке дел", "(прочитай|прочти) [мне] мой список дел"]
+    require: [[что, прочитай, прочти, зачитай, огласи, скажи, покажи],
+              [моем списке дел, мой список дел, моем списке задач, мой список задач, мои дела, мои задачи]]
+    optional: [[есть], [мне]]
+    exclude: [добавь, удали, убери, вычеркни, отметь, пометь]
+    home: todo_list
+    mine: todo_list
+    action:
+      - variables:
+          todo: "{{ slots.entity[0] }}"
+      - action: todo.get_items
+        target:
+          entity_id: "{{ todo }}"
+        data:
+          status: needs_action
+        response_variable: found
+      - variables:
+          reply:
+            listed: "{{ found[todo]['items'] | map(attribute='summary') | list }}"
+      - stop: Read the list
+        response_variable: reply
+    response:
+      done: >-
+        {%- set listed = result.listed or [] -%}
+        {%- set count = listed | count -%}
+        {%- set things = 'пункт' if count % 10 == 1 and count % 100 != 11 else
+          ('пункта' if count % 10 in [2, 3, 4] and (count % 100 < 12 or count % 100 > 14) else 'пунктов') -%}
+        {%- if count == 0 -%}
+        Ваш список дел пуст.
+        {%- elif count == 1 -%}
+        В вашем списке дел: {{ listed[0] }}.
+        {%- elif count > 8 -%}
+        В вашем списке дел {{ count }} {{ things }}: {{ listed[:5] | join(', ') }} и ещё {{ count - 5 }}.
+        {%- else -%}
+        В вашем списке дел: {{ listed[:-1] | join(', ') }} и {{ listed[-1] }}.
+        {%- endif -%}
+    needs:
+      - Give each person their to-do list (People page). Where nobody has one,
+        it reads the home's (Settings).

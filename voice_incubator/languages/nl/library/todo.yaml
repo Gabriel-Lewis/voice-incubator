@@ -1,14 +1,24 @@
-# Lists (Dutch), as the English library's todo.yaml.
+# Lists (Dutch), as the English library's todo.yaml: the shopping list and
+# the to-do list (de takenlijst) -- adding to them, checking off
+# (afstrepen), taking off, and what's on them. "Mijn takenlijst" is the
+# speaker's own.
 title: Lists
 icon: mdi:format-list-checks
+
+# Commands shown together in Add a command: each one's topic.
+topics:
+  shopping_list: {title: Shopping list, icon: mdi:cart-outline}
+  todo_list: {title: To-do list, icon: mdi:format-list-checks}
 
 commands:
   shopping_list_add:
     title: Add to the shopping list
+    topic: shopping_list
     icon: mdi:cart-plus
     description: iets op de boodschappenlijst zetten
-    require: [[zet, voeg, schrijf, doe], [boodschappenlijst, boodschappenlijstje]]
+    require: [[zet, voeg, schrijf, doe], [boodschappenlijst, boodschappenlijstje, lijst, lijstje]]
     optional: [[op, aan], [toe, erbij]]
+    exclude: [takenlijst, to do lijst, todolijst, to do, todo]
     wildcard:
       slot: item
       after: [zet, voeg, schrijf, doe]
@@ -16,8 +26,8 @@ commands:
       bounded: true
       max_words: 8
     home: shopping_list
-    # Each item said ("oranges and bananas": two), unless the list has one
-    # called that whole ("mac and cheese"); one the list has already isn't
+    # Each item said ("appels en bananen": two), unless the list has one
+    # called that whole ("macaroni en kaas"); one the list has already isn't
     # added again (already_on_list).
     adds_to_list: {slot: item, list: entity, each: true}
     action:
@@ -44,38 +54,137 @@ commands:
       done:
         brief: Op de boodschappenlijst gezet.
         specific: "{{ slots.item }} staat op de boodschappenlijst."
+        verbose: >-
+          {%- if added -%}
+          {{ added }} op de boodschappenlijst gezet{{ ' en ' ~ put_back ~ ' er weer op gezet' if put_back }}.
+          {%- else -%}
+          {{ put_back }} weer op de boodschappenlijst gezet.
+          {%- endif -%}
 
   shopping_list_remove:
     title: Take off the shopping list
+    topic: shopping_list
     icon: mdi:cart-minus
     description: iets van de boodschappenlijst halen
-    require: [[haal, verwijder, streep], [boodschappenlijst, boodschappenlijstje]]
-    optional: [[van, op], [af, door, weg]]
+    # Gone from the list; checking it off (done, and kept) is Check off the
+    # shopping list. The items said are ones on the list: "test drie" is
+    # "test 3"; "appels en bananen" two of them (items), unless one is called
+    # that.
+    require: [[haal, verwijder, wis], [boodschappenlijst, boodschappenlijstje, lijst, lijstje]]
+    optional: [[van, uit], [af, weg]]
+    exclude: [takenlijst, to do lijst, todolijst, to do, todo]
     wildcard:
       slot: item
-      after: [haal, verwijder, streep]
-      before: [van, door, op]
+      after: [haal, verwijder, wis]
+      before: [van, uit]
       bounded: true
-      max_words: 5
+      max_words: 8
+    on_list: {item: entity}
     home: shopping_list
     action:
       action: todo.remove_item
       target:
         entity_id: "{{ slots.entity }}"
       data:
-        item: "{{ slots.item }}"
+        item: "{{ items }}"
     verbosity: specific
     response:
       done:
         brief: Van de boodschappenlijst gehaald.
         specific: "{{ slots.item }} van de boodschappenlijst gehaald."
+    needs:
+      - Set the home's shopping list in Settings, or give it one of its
+        own (its implied target).
+
+  shopping_list_check:
+    title: Check off the shopping list
+    topic: shopping_list
+    icon: mdi:cart-check
+    description: iets op de boodschappenlijst afstrepen
+    # Done, and kept on the list as such: "streep de melk door op de lijst",
+    # "vink eieren af op de boodschappenlijst", "markeer brood als gekocht op
+    # de lijst", "streep appels en bananen af op de boodschappenlijst" (each
+    # of the items).
+    require: [[streep, vink, markeer], [boodschappenlijst, boodschappenlijstje, lijst, lijstje]]
+    optional: [[door, af], [op, van], [als gekocht, als gedaan]]
+    exclude: [takenlijst, to do lijst, todolijst, to do, todo]
+    wildcard:
+      slot: item
+      after: [streep, vink, markeer]
+      before: [door, af, op, van, als gekocht, als gedaan]
+      bounded: true
+      max_words: 8
+    on_list: {item: entity}
+    home: shopping_list
+    action:
+      repeat:
+        for_each: "{{ items }}"
+        sequence:
+          - action: todo.update_item
+            target:
+              entity_id: "{{ slots.entity }}"
+            data:
+              item: "{{ repeat.item }}"
+              status: completed
+    verbosity: specific
+    response:
+      done:
+        brief: Afgestreept.
+        specific: "{{ slots.item }} afgestreept op de boodschappenlijst."
+    needs:
+      - Set the home's shopping list in Settings, or give it one of its
+        own (its implied target).
+
+  shopping_list_items:
+    title: What's on the shopping list
+    topic: shopping_list
+    icon: mdi:cart-outline
+    description: weten wat er op de boodschappenlijst staat
+    # What is still to get; what was checked off is left out.
+    examples: ["wat staat er op [de|mijn|onze] boodschappenlijst", "wat moeten we [nog] (halen|kopen)",
+               "lees [me] de boodschappenlijst voor"]
+    require: [[wat staat er op, wat staat op, lees, vertel me], [boodschappenlijst, boodschappenlijstje]]
+    optional: [[de, mijn, onze], [voor, me]]
+    home: shopping_list
+    action:
+      - variables:
+          shopping: "{{ slots.entity[0] }}"
+      - action: todo.get_items
+        target:
+          entity_id: "{{ shopping }}"
+        data:
+          status: needs_action
+        response_variable: found
+      - variables:
+          reply:
+            listed: "{{ found[shopping]['items'] | map(attribute='summary') | list }}"
+      - stop: Read the list
+        response_variable: reply
+    response:
+      done: >-
+        {%- set listed = result.listed or [] -%}
+        {%- set count = listed | count -%}
+        {%- if count == 0 -%}
+        De boodschappenlijst is leeg.
+        {%- elif count == 1 -%}
+        Er staat {{ listed[0] }} op de boodschappenlijst.
+        {%- elif count > 8 -%}
+        Er staan {{ count }} dingen op de boodschappenlijst: {{ listed[:5] | join(', ') }} en nog {{ count - 5 }}.
+        {%- else -%}
+        Op de boodschappenlijst: {{ listed[:-1] | join(', ') }} en {{ listed[-1] }}.
+        {%- endif -%}
+    needs:
+      - Set the home's shopping list in Settings, or give it one of its
+        own (its implied target).
 
   todo_add:
     title: Add to the to-do list
+    topic: todo_list
     icon: mdi:format-list-checks
     description: iets op de takenlijst zetten
     require: [[zet, voeg, schrijf], [takenlijst, to do lijst, todolijst]]
     optional: [[op, aan], [toe, erbij]]
+    exclude: [mijn, "m'n"]
     wildcard:
       slot: item
       after: [zet, voeg, schrijf]
@@ -110,6 +219,282 @@ commands:
       done:
         brief: Op de takenlijst gezet.
         specific: "{{ slots.item }} staat op de takenlijst."
+        verbose: "{{ (added ~ ' op de takenlijst gezet') if added else (put_back ~ ' weer op de takenlijst gezet') }}."
     needs:
-      - Set the home's to-do list on the Settings page, or give it one of its
+      - Set the home's to-do list in Settings, or give it one of its
         own (its implied target).
+
+  todo_remove:
+    title: Take off the to-do list
+    topic: todo_list
+    icon: mdi:playlist-remove
+    description: iets van de takenlijst halen
+    # Gone from the list; checking it off (done, and kept) is Check off the
+    # to-do list. The items said are ones on the list, as for the shopping
+    # list's.
+    require: [[haal, verwijder, wis], [takenlijst, to do lijst, todolijst]]
+    optional: [[van, uit], [af, weg]]
+    exclude: [mijn, "m'n"]
+    wildcard:
+      slot: item
+      after: [haal, verwijder, wis]
+      before: [van, uit]
+      bounded: true
+      max_words: 8
+    on_list: {item: entity}
+    home: todo_list
+    action:
+      action: todo.remove_item
+      target:
+        entity_id: "{{ slots.entity }}"
+      data:
+        item: "{{ items }}"
+    verbosity: specific
+    response:
+      done:
+        brief: Van de takenlijst gehaald.
+        specific: "{{ slots.item }} van de takenlijst gehaald."
+    needs:
+      - Set the home's to-do list in Settings, or give it one of its
+        own (its implied target).
+
+  todo_check:
+    title: Check off the to-do list
+    topic: todo_list
+    icon: mdi:playlist-check
+    description: iets op de takenlijst afvinken
+    # Done, and kept on the list as such: "vink de loodgieter bellen af op de
+    # takenlijst", "markeer belasting en de was als gedaan op de takenlijst".
+    require: [[streep, vink, markeer], [takenlijst, to do lijst, todolijst]]
+    optional: [[door, af], [op, van], [als gedaan, als klaar]]
+    exclude: [mijn, "m'n"]
+    wildcard:
+      slot: item
+      after: [streep, vink, markeer]
+      before: [door, af, op, van, als gedaan, als klaar]
+      bounded: true
+      max_words: 8
+    on_list: {item: entity}
+    home: todo_list
+    action:
+      repeat:
+        for_each: "{{ items }}"
+        sequence:
+          - action: todo.update_item
+            target:
+              entity_id: "{{ slots.entity }}"
+            data:
+              item: "{{ repeat.item }}"
+              status: completed
+    verbosity: specific
+    response:
+      done:
+        brief: Afgevinkt.
+        specific: "{{ slots.item }} afgevinkt op de takenlijst."
+    needs:
+      - Set the home's to-do list in Settings, or give it one of its
+        own (its implied target).
+
+  todo_items:
+    title: What's on the to-do list
+    topic: todo_list
+    icon: mdi:format-list-bulleted
+    description: weten wat er op de takenlijst staat
+    # What is still to do; what was checked off is left out. Someone's own
+    # is What's on my to-do list.
+    examples: ["wat staat er op [de|onze] takenlijst", "lees [me] [de|onze] takenlijst voor"]
+    require: [[wat staat er op, wat staat op, lees, vertel me], [takenlijst, to do lijst, todolijst]]
+    optional: [[de, onze], [voor, me]]
+    exclude: [mijn, "m'n"]
+    home: todo_list
+    action:
+      - variables:
+          todo: "{{ slots.entity[0] }}"
+      - action: todo.get_items
+        target:
+          entity_id: "{{ todo }}"
+        data:
+          status: needs_action
+        response_variable: found
+      - variables:
+          reply:
+            listed: "{{ found[todo]['items'] | map(attribute='summary') | list }}"
+      - stop: Read the list
+        response_variable: reply
+    response:
+      done: >-
+        {%- set listed = result.listed or [] -%}
+        {%- set count = listed | count -%}
+        {%- if count == 0 -%}
+        De takenlijst is leeg.
+        {%- elif count == 1 -%}
+        Er staat {{ listed[0] }} op de takenlijst.
+        {%- elif count > 8 -%}
+        Er staan {{ count }} dingen op de takenlijst: {{ listed[:5] | join(', ') }} en nog {{ count - 5 }}.
+        {%- else -%}
+        Op de takenlijst: {{ listed[:-1] | join(', ') }} en {{ listed[-1] }}.
+        {%- endif -%}
+    needs:
+      - Set the home's to-do list in Settings, or give it one of its
+        own (its implied target).
+
+  todo_add_mine:
+    title: Add to my to-do list
+    topic: todo_list
+    icon: mdi:account-check-outline
+    description: iets op mijn takenlijst zetten
+    # The speaker's own (People page); where nobody has one, this one.
+    require: [[zet, voeg, schrijf], [mijn takenlijst, mijn to do lijst, mijn todolijst, "m'n takenlijst"]]
+    optional: [[op, aan], [toe, erbij]]
+    wildcard:
+      slot: item
+      after: [zet, voeg, schrijf]
+      before: [op, aan, toe]
+      bounded: true
+      max_words: 8
+    home: todo_list
+    mine: todo_list
+    # The whole of it: one the list has already isn't added again
+    # (already_on_list).
+    adds_to_list: {slot: item, list: entity}
+    action:
+      # What isn't on the list is added; what was checked off is checked back on.
+      - repeat:
+          for_each: "{{ items }}"
+          sequence:
+            - action: todo.add_item
+              target:
+                entity_id: "{{ slots.entity }}"
+              data:
+                item: "{{ repeat.item }}"
+      - repeat:
+          for_each: "{{ back }}"
+          sequence:
+            - action: todo.update_item
+              target:
+                entity_id: "{{ slots.entity }}"
+              data:
+                item: "{{ repeat.item }}"
+                status: needs_action
+    verbosity: specific
+    response:
+      done:
+        brief: Op je takenlijst gezet.
+        specific: "{{ slots.item }} staat op je takenlijst."
+        verbose: "{{ (added ~ ' op je takenlijst gezet') if added else (put_back ~ ' weer op je takenlijst gezet') }}."
+    needs:
+      - Give each person their to-do list (People page). Where nobody has one,
+        it adds to the home's (Settings).
+
+  todo_remove_mine:
+    title: Take off my to-do list
+    topic: todo_list
+    icon: mdi:account-remove-outline
+    description: iets van mijn takenlijst halen
+    # The speaker's own (People page); where nobody has one, this one. The
+    # items said are ones on it, as for the to-do list's.
+    require: [[haal, verwijder, wis], [mijn takenlijst, mijn to do lijst, mijn todolijst, "m'n takenlijst"]]
+    optional: [[van, uit], [af, weg]]
+    wildcard:
+      slot: item
+      after: [haal, verwijder, wis]
+      before: [van, uit]
+      bounded: true
+      max_words: 8
+    on_list: {item: entity}
+    home: todo_list
+    mine: todo_list
+    action:
+      action: todo.remove_item
+      target:
+        entity_id: "{{ slots.entity }}"
+      data:
+        item: "{{ items }}"
+    verbosity: specific
+    response:
+      done:
+        brief: Van je takenlijst gehaald.
+        specific: "{{ slots.item }} van je takenlijst gehaald."
+    needs:
+      - Give each person their to-do list (People page). Where nobody has one,
+        it takes off the home's (Settings).
+
+  todo_check_mine:
+    title: Check off my to-do list
+    topic: todo_list
+    icon: mdi:account-check
+    description: iets op mijn takenlijst afvinken
+    # The speaker's own (People page); where nobody has one, this one. Done,
+    # and kept on the list as such.
+    require: [[streep, vink, markeer], [mijn takenlijst, mijn to do lijst, mijn todolijst, "m'n takenlijst"]]
+    optional: [[door, af], [op, van], [als gedaan, als klaar]]
+    wildcard:
+      slot: item
+      after: [streep, vink, markeer]
+      before: [door, af, op, van, als gedaan, als klaar]
+      bounded: true
+      max_words: 8
+    on_list: {item: entity}
+    home: todo_list
+    mine: todo_list
+    action:
+      repeat:
+        for_each: "{{ items }}"
+        sequence:
+          - action: todo.update_item
+            target:
+              entity_id: "{{ slots.entity }}"
+            data:
+              item: "{{ repeat.item }}"
+              status: completed
+    verbosity: specific
+    response:
+      done:
+        brief: Afgevinkt.
+        specific: "{{ slots.item }} afgevinkt op je takenlijst."
+    needs:
+      - Give each person their to-do list (People page). Where nobody has one,
+        it checks off the home's (Settings).
+
+  todo_items_mine:
+    title: What's on my to-do list
+    topic: todo_list
+    icon: mdi:account-details-outline
+    description: weten wat er op mijn takenlijst staat
+    # The speaker's own (People page); where nobody has one, the home's. What
+    # is still to do; what was checked off is left out.
+    examples: ["wat staat er op mijn takenlijst", "lees [me] mijn takenlijst voor"]
+    require: [[wat staat er op, wat staat op, lees, vertel me], [mijn takenlijst, mijn to do lijst, mijn todolijst, "m'n takenlijst"]]
+    optional: [[voor, me]]
+    home: todo_list
+    mine: todo_list
+    action:
+      - variables:
+          todo: "{{ slots.entity[0] }}"
+      - action: todo.get_items
+        target:
+          entity_id: "{{ todo }}"
+        data:
+          status: needs_action
+        response_variable: found
+      - variables:
+          reply:
+            listed: "{{ found[todo]['items'] | map(attribute='summary') | list }}"
+      - stop: Read the list
+        response_variable: reply
+    response:
+      done: >-
+        {%- set listed = result.listed or [] -%}
+        {%- set count = listed | count -%}
+        {%- if count == 0 -%}
+        Je takenlijst is leeg.
+        {%- elif count == 1 -%}
+        Er staat {{ listed[0] }} op je takenlijst.
+        {%- elif count > 8 -%}
+        Er staan {{ count }} dingen op je takenlijst: {{ listed[:5] | join(', ') }} en nog {{ count - 5 }}.
+        {%- else -%}
+        Op je takenlijst: {{ listed[:-1] | join(', ') }} en {{ listed[-1] }}.
+        {%- endif -%}
+    needs:
+      - Give each person their to-do list (People page). Where nobody has one,
+        it reads the home's (Settings).

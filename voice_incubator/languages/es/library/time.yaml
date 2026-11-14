@@ -1,18 +1,27 @@
-# Date and time (Spanish), as the English library's time.yaml.
+# Date and time (Spanish), as the English library's time.yaml: the time and
+# the date now. A time from now ("qué hora será dentro de 45 minutos") is a
+# question: the clock skill's.
 title: Date and time
 icon: mdi:clock-outline
+
+# Commands shown together in Add a command: each one's topic.
+topics:
+  date_and_time: {title: Date and time, icon: mdi:clock-outline}
 
 commands:
   what_time:
     title: What time is it
+    topic: date_and_time
     icon: mdi:clock-outline
     description: saber la hora
     examples: ["qué hora es [ahora]", "dime la hora"]
     require: [[qué hora, la hora]]
     optional: [[es, son], [ahora, ya], [dime, me dices, sabes]]
     # Other times: "a qué hora abre la tienda", "qué hora es en Tokio", "qué
-    # hora será dentro de 45 minutos" (that one is answered as a question).
-    exclude: [abre, abren, cierra, cierran, después, antes, hasta, en, será, dentro, media, minutos, horas]
+    # hora será dentro de 45 minutos" (that one is answered as a question), "a
+    # qué hora suena mi alarma".
+    exclude: [abre, abren, cierra, cierran, después, antes, hasta, en, será, dentro, media, minutos, horas, alarma,
+              alarmas]
     response: >-
       {%- set h = now().hour -%}
       {%- set m = now().minute -%}
@@ -24,6 +33,7 @@ commands:
 
   what_date:
     title: What's the date
+    topic: date_and_time
     icon: mdi:calendar-today
     description: saber la fecha
     examples: ["qué día es hoy", "qué fecha es hoy", "a qué día estamos [hoy]", "cuál es la fecha de hoy"]

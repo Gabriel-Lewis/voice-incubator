@@ -18,6 +18,7 @@ PACK = Pack(
     transducer="stt_de_fastconformer_hybrid_large_pc-transducer",
     transducer_about="stt_de_fastconformer_hybrid_large_pc, 115M parameters",
     piper="de_DE-thorsten-medium.onnx",
+    piper_languages=("de_DE",),
     adapt={
         "language": "de",
         "filler": [

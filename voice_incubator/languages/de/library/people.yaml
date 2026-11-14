@@ -1,0 +1,16 @@
+# People (German), as the English library's people.yaml: the people who live
+# here (People page).
+#
+# Who is speaking is who the app takes them to be: their voice, else whose
+# wake word it was, else the only person -- as "mein" means (voice_incubator/
+# people.py, speaking).
+title: People
+icon: mdi:account
+
+commands:
+  who_am_i:
+    title: Who am I
+    icon: mdi:account-voice
+    description: sagen, wer spricht
+    examples: ["wer bin ich", "wer spricht [gerade]", "weißt du wer ich bin", "wie heiße ich", "wie ist mein name"]
+    response: "{% if speaker.name %}Du bist {{ speaker.name }}.{% else %}Entschuldigung, ich weiß nicht, wer spricht.{% endif %}"

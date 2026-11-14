@@ -18,6 +18,7 @@ PACK = Pack(
     transducer="stt_nl_fastconformer_hybrid_large_pc-transducer",
     transducer_about="stt_nl_fastconformer_hybrid_large_pc, 115M parameters",
     piper="nl_NL-ronnie-medium.onnx",
+    piper_languages=("nl_NL", "nl_BE"),
     adapt={
         "language": "nl",
         "filler": [

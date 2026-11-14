@@ -68,6 +68,7 @@ from .library import _library, library_files, library_of, library_sections, libr
 from .people import find as people_find
 from .piper_voices import SETTINGS as PIPER_SETTINGS
 from .piper_voices import catalog as piper_catalog
+from .piper_voices import regions as piper_regions
 from .piper_voices import voices as listed_voices
 from .instruments import HIGHEST, INSTRUMENT, LOWEST, RING, SOUNDS, note_name
 from .protocol import SAMPLE_RATE
@@ -701,6 +702,7 @@ class Api:
         here = self.app.piper_dir
         return web.json_response({
             "voices": [{**v.to_json(), "here": v.model(here).is_file()} for v in listed_voices(self.app.language.piper_languages)],
+            "regions": piper_regions(self.app.language.piper_languages),
             "default": self.app.language.piper.removesuffix(".onnx"),
             "settings": {name: {"min": low, "max": high, "about": what} for name, (low, high, what) in PIPER_SETTINGS.items()},
         })
@@ -709,7 +711,7 @@ class Api:
         """A sentence in the voice speaking now, with these settings (the
         Settings page's, before they are saved), as WAV."""
         body = await request.json()
-        text = str(body.get("text") or "").strip() or "Hello! This is how I sound. Turned on the lights in the kitchen."
+        text = str(body.get("text") or "").strip() or self.app.language.speech.VOICE_SAMPLE
         app = self.app
         settings: dict[str, Any] = {}
         for name, (low, high, _what) in PIPER_SETTINGS.items():

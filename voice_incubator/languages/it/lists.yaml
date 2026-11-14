@@ -34,10 +34,76 @@ locked_unlocked:
   locked: [chiuso a chiave, chiusa a chiave, chiusi a chiave, chiuse a chiave, bloccato, bloccata]
   unlocked: [sbloccato, sbloccata, sbloccati, sbloccate]
 hvac_modes:
-  "off": [spento]
+  "off": [spento, spenta, off]
   heat: [riscaldamento, caldo, riscaldare]
   cool: [raffreddamento, freddo, aria condizionata]
   heat_cool: [caldo e freddo]
   auto: [automatico, auto]
   dry: [deumidificazione, deumidificare]
   fan_only: [ventilazione, solo ventilatore]
+media_kinds:
+  # What plays (Music library): "la musica" is Music Assistant's players, "la
+  # TV" the media players whose device class is tv.
+  music: [musica]
+  tv: [tv, tivù, televisione, televisore]
+color_temperatures:
+  "2700": [bianco caldo, luce calda, caldo, calda]
+  "3000": [bianco tenue, bianco morbido]
+  "4000": [bianco neutro, bianco naturale, luce naturale, neutro, naturale]
+  "5000": [bianco freddo, luce fredda, freddo, fredda]
+  "6500": [luce diurna, luce del giorno]
+forecast_days:
+  today: [oggi]
+  tomorrow: [domani]
+  day_after_tomorrow: [dopodomani, dopo domani]
+  monday: [lunedì]
+  tuesday: [martedì]
+  wednesday: [mercoledì]
+  thursday: [giovedì]
+  friday: [venerdì]
+  saturday: [sabato]
+  sunday: [domenica]
+  weekend: [questo fine settimana, fine settimana, questo weekend, weekend]
+weather_kinds:
+  # The verb too ("pioverà domani?"): the list is the command's keyword.
+  rain: [pioverà, piove, pioggia, piovere, ombrello]
+  snow: [nevicherà, nevica, neve, nevicare]
+fan_modes:
+  auto: [automatico, automatica, auto]
+  "on": [acceso, accesa, sempre accesa]
+  "off": [spento, spenta]
+  low: [basso, bassa, minimo, minima]
+  medium: [medio, media]
+  high: [alto, alta, massimo, massima]
+  circulate: [ricircolo, circolazione]
+  # Both at once, where a thermostat's modes are ("on_low", "auto_high").
+  auto_low: [automatico basso, automatica bassa]
+  auto_medium: [automatico medio, automatica media]
+  auto_high: [automatico alto, automatica alta]
+  on_low: [acceso basso, accesa bassa]
+  on_medium: [acceso medio, accesa media]
+  on_high: [acceso alto, accesa alta]
+binary_states:
+  # What a binary sensor is asked to be ("la porta d'ingresso è aperta?"):
+  # the words for each of its device classes' two states (Sensors library
+  # group). Not chiuso a chiave: that is the lock's (Covers and locks), which
+  # asks a binary sensor of the lock class too.
+  "on": [acceso, accesa, attivo, attiva]
+  "off": [spento, spenta, inattivo, inattiva]
+  open: [aperto, aperta, aperti, aperte]
+  closed: [chiuso, chiusa, chiusi, chiuse]
+  wet: [bagnato, bagnata, allagato, allagata]
+  dry: [asciutto, asciutta]
+  occupied: [occupato, occupata]
+  clear: [libero, libera, vuoto, vuota]
+  home: [a casa, in casa]
+  away: [fuori casa, via]
+  connected: [connesso, connessa, online]
+  disconnected: [disconnesso, disconnessa, offline]
+  running: [in funzione]
+  charging: [in carica]
+  plugged in: [collegato, collegata, attaccato, attaccata]
+  unplugged: [scollegato, scollegata, staccato, staccata]
+  low: [scarico, scarica]
+  cold: [freddo, fredda]
+  hot: [caldo, calda]

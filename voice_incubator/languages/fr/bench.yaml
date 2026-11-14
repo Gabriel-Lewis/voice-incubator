@@ -1,7 +1,10 @@
 # French sentences and what each must become with the French library, for
 # scripts/bench_language.py (spoken) and tests/test_languages.py (typed). The
 # home: these names, the devices in these rooms, a satellite in the bureau.
-# Numbers are written as said, for text-to-speech.
+# Numbers are written as said, for text-to-speech. An alarm's or reminder's
+# time is compared by when the calendar reads it, on a Wednesday afternoon
+# ("sept heures du soir" is "dix-neuf heures"); free text loses "dans" and "à"
+# at its start, which the calendar reads without.
 names:
   areas:
     cuisine: Cuisine
@@ -21,6 +24,9 @@ names:
     climate.thermostat: Thermostat
     cover.velux: Velux
     lock.porte_entree: Porte d'entrée
+    sensor.temperature_exterieure: Température extérieure
+    sensor.seche_linge: Sèche-linge
+    binary_sensor.boite_aux_lettres: Boîte aux lettres
 rooms:
   fan.ventilateur_plafond: chambre
   media_player.cuisine: cuisine
@@ -52,7 +58,7 @@ sentences:
   - ["Quel jour sommes-nous ?", what_date, {}, "a question"]
   - ["Joue du jazz.", play_music_here, {query: jazz}, "free text"]
   - ["Joue du jazz dans la cuisine.", play_music_place, {area: [cuisine], query: jazz}, "free text, then a place"]
-  - ["Mets la musique en pause.", pause_music_here, {}, "music"]
+  - ["Mets la musique en pause.", pause_music_here, {kind: music}, "music, by kind"]
   - ["Mets le volume à trente pour cent.", set_volume_here, {percentage: 30}, "music, a number"]
   - ["Qu'est-ce qui joue dans la cuisine ?", whats_playing_place, {area: [cuisine]}, "music, a place"]
   - ["Déplace la musique sur l'enceinte de la cuisine.", move_music_device, {entity: [media_player.cuisine]}, "music, a device"]
@@ -66,3 +72,92 @@ sentences:
   - ["Annule le minuteur.", cancel_timer, {}, "a timer"]
   - ["Combien de temps reste-t-il sur le minuteur ?", timer_status, {}, "a timer question"]
   - ["Laisse tomber.", never_mind, {}, "an example sentence"]
+  # People, sensors, satellites.
+  - ["Qui suis-je ?", who_am_i, {}, "an example sentence"]
+  - ["Quelle est la température extérieure ?", sensor_value, {entity: [sensor.temperature_exterieure]}, "a sensor by name"]
+  - ["Combien consomme le sèche-linge ?", sensor_value, {entity: [sensor.seche_linge]}, "a sensor, combien"]
+  - ["Est-ce que la boîte aux lettres est ouverte ?", binary_sensor_state, {entity: [binary_sensor.boite_aux_lettres], asked: open}, "a binary sensor"]
+  - ["Annonce que le dîner est prêt.", announce, {message: le dîner est prêt}, "free text to the end"]
+  - ["Annonce au premier étage que le dîner est prêt.", announce, {floor: [premier_etage], message: le dîner est prêt}, "a floor, then que"]
+  - ["Connecte-moi à la cuisine.", intercom, {area: [cuisine]}, "the intercom"]
+  - ["Parle plus fort.", own_volume_up, {}, "an example sentence"]
+  - ["Baisse ton volume.", own_volume_down, {}, "an example sentence"]
+  - ["Mets ton volume à cinquante pour cent.", own_volume_set, {percentage: 50}, "its own volume, a number"]
+  # Weather.
+  - ["Quel temps fait-il ?", weather, {}, "an example sentence"]
+  - ["Quel temps fera-t-il demain ?", weather_day, {day: tomorrow}, "a day"]
+  - ["Quel temps va-t-il faire samedi ?", weather_day, {day: saturday}, "a weekday"]
+  - ["Quelle est la météo de la semaine ?", weather_week, {}, "the week"]
+  - ["Est-ce qu'il va pleuvoir demain ?", will_it_rain, {what: rain, day: tomorrow}, "rain, a day"]
+  - ["Est-ce qu'il va neiger ce week-end ?", will_it_rain, {what: snow, day: weekend}, "snow, the weekend"]
+  # Climate.
+  - ["Mets le chauffage à vingt degrés.", set_temperature_here, {temperature: 20}, "the home's thermostat"]
+  - ["À combien est réglé le thermostat ?", thermostat, {}, "an example sentence"]
+  - ["Monte le chauffage.", heat_up, {}, "a step up"]
+  - ["Baisse un peu le chauffage.", heat_down, {}, "a step down"]
+  - ["Dans quel mode est le thermostat ?", thermostat_mode, {}, "an example sentence"]
+  - ["Mets le thermostat en mode chauffage.", set_thermostat_mode, {mode: heat}, "a mode"]
+  - ["Mets le thermostat sur arrêt.", set_thermostat_mode, {mode: "off"}, "off"]
+  - ["Quel est le mode du ventilateur du thermostat ?", thermostat_fan, {}, "an example sentence"]
+  - ["Mets le ventilateur du thermostat en automatique.", set_thermostat_fan, {mode: auto}, "a fan mode"]
+  # Lists.
+  - ["Enlève le lait de la liste de courses.", shopping_list_remove, {item: lait}, "free text between keywords"]
+  - ["Coche les œufs sur la liste de courses.", shopping_list_check, {item: œufs}, "checked off"]
+  - ["Qu'est-ce qu'il y a sur la liste de courses ?", shopping_list_items, {}, "an example sentence"]
+  - ["Ajoute appeler le plombier à la liste de tâches.", todo_add, {item: appeler le plombier}, "the to-do list"]
+  - ["Enlève la lessive de la liste de tâches.", todo_remove, {item: lessive}, "taken off"]
+  - ["Coche les impôts sur la liste de tâches.", todo_check, {item: impôts}, "checked off"]
+  - ["Qu'est-ce qu'il y a sur la liste de tâches ?", todo_items, {}, "an example sentence"]
+  - ["Ajoute réserver le restaurant à ma liste de tâches.", todo_add_mine, {item: réserver le restaurant}, "my own list"]
+  - ["Enlève la lessive de ma liste de tâches.", todo_remove_mine, {item: lessive}, "my own list"]
+  - ["Coche les impôts sur ma liste de tâches.", todo_check_mine, {item: impôts}, "my own list"]
+  - ["Qu'est-ce qu'il y a sur ma liste de tâches ?", todo_items_mine, {}, "an example sentence"]
+  # Lights.
+  - ["Plus de lumière.", brighter_here, {}, "an example sentence"]
+  - ["Augmente la lumière dans le salon.", brighter_place, {area: [salon]}, "brighter, an area"]
+  - ["Augmente le lampadaire.", brighter_device, {entity: [light.lampadaire]}, "brighter, a device"]
+  - ["Moins de lumière.", dimmer_here, {}, "an example sentence"]
+  - ["Baisse la lumière dans la chambre.", dimmer_place, {area: [chambre]}, "dimmer, an area"]
+  - ["Mets la lumière en blanc chaud.", light_temperature_here, {color_temperature: "2700"}, "a white"]
+  - ["Mets le lampadaire en lumière du jour.", light_temperature_device, {entity: [light.lampadaire], color_temperature: "6500"}, "a white, a device"]
+  - ["Mets la lumière à cinquante pour cent.", set_brightness_here, {percentage: 50}, "a number, the lights"]
+  # Covers.
+  - ["Mets les volets à cinquante pour cent.", cover_position_here, {device_class: shutter, percentage: 50}, "a position"]
+  - ["Mets le velux à trente pour cent.", cover_position_device, {entity: [cover.velux], percentage: 30}, "a position, a device"]
+  - ["Mets les stores de la cuisine à vingt pour cent.", cover_position_place, {area: [cuisine], device_class: blind, percentage: 20}, "a position, an area"]
+  # Music.
+  - ["Mets ma playlist.", play_my_playlist, {}, "an example sentence"]
+  - ["Mets la télé en pause dans la cuisine.", pause_music_place, {area: [cuisine], kind: tv}, "the TV, a place"]
+  - ["Baisse le son de la télé.", volume_down_here, {kind: tv}, "the TV"]
+  - ["Monte la télé à cinquante.", set_volume_here, {kind: tv, percentage: 50}, "the TV, a number"]
+  # Alarms.
+  - ["Mets un réveil à sept heures et demie.", set_alarm, {time: sept heures et demie}, "next 7:30 to come"]
+  - ["Réveille-moi à six heures et quart demain matin.", set_alarm, {time: six heures et quart demain matin}, "et quart, du matin"]
+  - ["Mets un réveil pour sept heures du soir demain.", set_alarm, {time: dix-neuf heures demain}, "du soir, then the day"]
+  - ["Mets un réveil à huit heures moins le quart demain.", set_alarm, {time: huit heures moins le quart demain}, "moins le quart"]
+  - ["Mets un réveil tous les jours de la semaine à six heures quarante-cinq.", set_alarm, {time: tous les jours de la semaine à six heures quarante-cinq}, "repeating"]
+  - ["Mets un réveil tous les jours à sept heures.", set_alarm, {time: tous les jours à sept heures}, "daily"]
+  - ["Réveille-moi à sept heures samedi.", set_alarm, {time: sept heures samedi}, "a weekday, the morning"]
+  - ["Mets un réveil à midi.", set_alarm, {time: midi}, "midi"]
+  - ["Mets un réveil à dix heures ce soir.", set_alarm, {time: dix heures ce soir}, "ce soir"]
+  - ["Mets un réveil demain à huit heures.", set_alarm, {time: demain à huit heures}, "the day first"]
+  - ["Mets un réveil dans vingt minutes.", set_alarm, {time: dans vingt minutes}, "from now"]
+  - ["Annule mon réveil de demain.", cancel_alarm, {time: demain}, "a day alone"]
+  - ["Annule le réveil de sept heures.", cancel_alarm, {time: sept heures}, "a time after réveil"]
+  - ["Quels réveils ai-je ?", alarm_status, {}, "an example sentence"]
+  - ["Quand sonne mon réveil ?", alarm_status, {}, "an example sentence"]
+  # Reminders and the calendar.
+  - ["Quels sont mes rappels ?", reminder_status, {}, "an example sentence"]
+  - ["Rappelle-moi à dix-sept heures d'appeler maman.", remind_me, {entity: [todo.reminders], reminder: à dix-sept heures d'appeler maman}, "time first"]
+  - ["Rappelle-moi de sortir les poubelles tous les mardis à dix-neuf heures.", remind_me, {entity: [todo.reminders], reminder: de sortir les poubelles tous les mardis à dix-neuf heures}, "repeating, time last"]
+  - ["Rappelle-moi dans dix minutes de surveiller le four.", remind_me, {entity: [todo.reminders], reminder: dans dix minutes de surveiller le four}, "from now"]
+  - ["Rappelle-moi demain à neuf heures d'appeler le dentiste.", remind_me, {entity: [todo.reminders], reminder: demain à neuf heures d'appeler le dentiste}, "a day and a time first"]
+  - ["Rappelle-moi vendredi à quinze heures que le plombier vient.", remind_me, {entity: [todo.reminders], reminder: vendredi à quinze heures que le plombier vient}, "a weekday, then que"]
+  - ["Rappelle-moi de me reposer dix minutes à dix-sept heures.", remind_me, {entity: [todo.reminders], reminder: de me reposer dix minutes à dix-sept heures}, "a length that is the reminder's"]
+  - ["Rappelle-moi d'acheter du lait.", remind_me, {entity: [todo.reminders], reminder: d'acheter du lait}, "no time: the to-do list"]
+  - ["Annule mon rappel d'appeler maman.", cancel_reminder, {reminder: d'appeler maman}, "what it is about"]
+  - ["Supprime le rappel concernant le dentiste.", cancel_reminder, {reminder: concernant le dentiste}, "concernant"]
+  - ["Supprime le rappel de demain.", cancel_reminder, {reminder: demain}, "its day"]
+  - ["Annule le rappel de dix-sept heures.", cancel_reminder, {reminder: dix-sept heures}, "its time"]
+  - ["Annule mon rappel.", cancel_reminder, {}, "the only one, or which"]
+  - ["Qu'est-ce qu'il y a dans mon agenda aujourd'hui ?", my_calendar, {entity: [calendar.family]}, "an example sentence"]

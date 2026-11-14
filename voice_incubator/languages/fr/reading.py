@@ -10,6 +10,10 @@ import re
 PLACE_BEFORE = ("dans", "à", "au", "aux", "en", "sur", "chez")
 ARTICLES = ("le", "la", "les", "l'", "du", "de", "des")
 
+WHEN_STARTS = ("dans", "à", "le", "la", "les", "l'", "que")
+"""Words of PLACE_BEFORE and ARTICLES an alarm's time or a reminder may start
+with, kept there: "dans huit heures", "à 7 heures", "le lundi", "que le plombier vient"."""
+
 # ------------------------------------------------------------------- music
 
 MUSIC_GENERIC = {
@@ -150,14 +154,30 @@ def clock(text: str) -> tuple[int, int, str | None] | None:
     s = re.sub(r"(\d{1,2})\s*h\b", r"\1 h", s)
     words = re.findall(r"[a-zéèêàâîïôûç']+|\d+", s)
     meridiem = None
-    if any(w in ("soir", "l'après-midi", "après-midi", "nuit") for w in words) or "de l'après" in s:
+    afternoon = re.search(r"après[\s-]+midi", s)
+    if any(w in ("soir", "nuit") for w in words) or afternoon:
         meridiem = "pm"
     elif any(w in ("matin",) for w in words):
         meridiem = "am"
-    if "après" not in s and "midi" in words:
-        return 12, 30 if "midi et demi" in s else 0, "pm"
-    if "minuit" in words:
-        return 0, 30 if "minuit et demi" in s else 0, "am"
+    # Noon and midnight, and a quarter or a half from them: "midi et quart",
+    # "midi moins le quart", "minuit et demie" ("après-midi" is no noon).
+    for word, base in (("midi", 12), ("minuit", 0)):
+        if word in words and not (word == "midi" and afternoon):
+            found = re.search(rf"{word}(?: (et quart|et demie?|moins le quart|moins \S+|\d+|\S+))?", _numbers(s))
+            hour, minute = base, 0
+            extra = (found.group(1) or "") if found else ""
+            if extra == "et quart":
+                minute = 15
+            elif extra.startswith("et demi"):
+                minute = 30
+            elif extra == "moins le quart":
+                hour, minute = base - 1, 45
+            elif extra.startswith("moins ") and extra[6:].isdigit():
+                hour, minute = base - 1, 60 - int(extra[6:])
+            elif extra.isdigit():
+                minute = int(extra)
+            hour %= 24
+            return _valid(hour, minute, "pm" if 12 <= hour < 24 and word == "midi" else ("am" if hour < 12 else None))
     joined = _numbers(s)
     for pattern, time in _SAID:
         found = pattern.search(joined)

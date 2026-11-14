@@ -16,6 +16,11 @@ colors:
 on_off:
   "on": [an, eingeschaltet]
   "off": [aus, ausgeschaltet]
+media_kinds:
+  # What plays (Music library): "die Musik" is Music Assistant's players, "der
+  # Fernseher" the media players whose device class is tv.
+  music: [musik]
+  tv: [fernseher, fernsehen, tv, glotze]
 cover_classes:
   awning: [markise, markisen]
   blind: [jalousie, jalousien]
@@ -32,6 +37,66 @@ open_closed:
 locked_unlocked:
   locked: [abgeschlossen, verriegelt, zugesperrt]
   unlocked: [aufgeschlossen, entriegelt, aufgesperrt]
+color_temperatures:
+  "2700": [warmweiß, warmes weiß, warm]
+  "3000": [sanftes weiß, softweiß]
+  "4000": [neutralweiß, neutrales weiß, naturweiß, neutral]
+  "5000": [kaltweiß, kühles weiß, kaltes weiß, kühl, kalt]
+  "6500": [tageslicht, tageslichtweiß]
+forecast_days:
+  today: [heute]
+  tomorrow: [morgen]
+  day_after_tomorrow: [übermorgen]
+  monday: [montag, am montag]
+  tuesday: [dienstag, am dienstag]
+  wednesday: [mittwoch, am mittwoch]
+  thursday: [donnerstag, am donnerstag]
+  friday: [freitag, am freitag]
+  saturday: [samstag, sonnabend, am samstag]
+  sunday: [sonntag, am sonntag]
+  weekend: [am wochenende, dieses wochenende, wochenende]
+weather_kinds:
+  rain: [regen, regnen, regnet, regnerisch, regenschirm, nass]
+  snow: [schnee, schneien, schneit]
+fan_modes:
+  auto: [auto, automatisch, automatik]
+  "on": [an, immer an, dauerhaft an]
+  "off": [aus]
+  low: [niedrig, langsam, stufe eins]
+  medium: [mittel, mittlere stufe, stufe zwei]
+  high: [hoch, schnell, stufe drei]
+  circulate: [umwälzen, zirkulieren, umluft]
+  # Both at once, where a thermostat's modes are ("on_low", "auto_high").
+  auto_low: [auto niedrig, automatisch niedrig]
+  auto_medium: [auto mittel, automatisch mittel]
+  auto_high: [auto hoch, automatisch hoch]
+  on_low: [an niedrig]
+  on_medium: [an mittel]
+  on_high: [an hoch]
+binary_states:
+  # What a binary sensor is asked to be ("ist die Haustür offen"): the words
+  # for each of its device classes' two states (Sensors library group). Not
+  # locked or unlocked: "ist die Haustür abgeschlossen" is the lock's (Covers
+  # and locks), which asks a binary sensor of the lock class too.
+  "on": [an, eingeschaltet]
+  "off": [aus, ausgeschaltet]
+  open: [offen, geöffnet]
+  closed: [geschlossen, zu]
+  wet: [nass, feucht, undicht]
+  dry: [trocken]
+  occupied: [belegt, besetzt]
+  clear: [frei, leer]
+  home: [zu hause, daheim]
+  away: [weg, unterwegs, abwesend]
+  connected: [verbunden, online]
+  disconnected: [getrennt, offline]
+  running: [läuft, in betrieb]
+  charging: [lädt]
+  plugged in: [eingesteckt]
+  unplugged: [ausgesteckt]
+  low: [niedrig, schwach]
+  cold: [kalt]
+  hot: [heiß]
 hvac_modes:
   "off": [aus]
   heat: [heizen, heizung, wärmen]

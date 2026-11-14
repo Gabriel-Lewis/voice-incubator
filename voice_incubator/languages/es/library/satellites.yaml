@@ -1,11 +1,112 @@
-# About the satellite itself (Spanish), as the English library's satellites.yaml.
+# The satellites (Spanish), as the English library's satellites.yaml:
+# announcements between them, the intercom, a satellite's own volume, and
+# never mind.
+#
+# An announcement is said on the other satellites, after a chime: every one, or
+# those in the area or on the floor named. One in a call, ringing a timer or
+# joined by the intercom says it once that is over (within a minute).
+#
+# The intercom joins this satellite and the one in the area named, once this
+# call ends: what is said at each is heard at the other. Both stop answering
+# wake words and blink their rings until the button on either is pressed (or
+# after half an hour). Both need firmware that can.
 title: Satellites
 icon: mdi:speaker-wireless
 
+# Commands shown together in Add a command: each one's topic.
+topics:
+  own_volume: {title: Satellite volume, icon: mdi:volume-equal}
+
 commands:
+  announce:
+    title: Announce
+    icon: mdi:bullhorn
+    description: anunciar algo en los otros satélites
+    # "Anuncia que la cena está lista", "di a todos que la cena está lista",
+    # "anuncia en la cocina que la cena está lista", "anuncia en la planta de
+    # arriba que nos vamos".
+    require: [[anuncia, anunciar, avisa a todos, dile a todos, di a todos, diles a todos]]
+    optional: [[que]]
+    names:
+      area: {count: 1}
+      floor: {count: 1}
+    combinations: [[message], [area, message], [floor, message]]
+    wildcard:
+      slot: message
+      after: [anuncia, anunciar, avisa a todos, dile a todos, di a todos, diles a todos, que]
+      to_end: true
+      max_words: 15
+    announce: "{{ slots.message }}"
+
+  intercom:
+    title: Intercom
+    icon: mdi:phone-in-talk
+    description: hablar con otra habitación a través de su satélite
+    # "Conecta con la cocina", "llama a la cocina", "conéctame con el
+    # satélite del despacho", "intercomunicador con el dormitorio".
+    require: [[conecta, conéctame, conectar, llama, intercomunicador, interfono]]
+    optional: [[con], [satélite, asistente, asistente de voz]]
+    names:
+      area: {count: 1}
+    intercom: connect
+    needs:
+      - Give the satellites their areas (each one's page), and the areas names
+        (Names page). The button on either satellite ends it.
+
+  # The satellite's own speaker, whatever plays on it: what its dial sets.
+  own_volume_up:
+    title: Turn yourself up
+    topic: own_volume
+    icon: mdi:volume-plus
+    description: subir el volumen del propio satélite
+    examples: [habla más alto, habla más fuerte, sube tu volumen, súbete el volumen]
+    require: [[habla más alto, habla más fuerte, sube tu volumen, súbete el volumen, sube tu voz]]
+    action:
+      action: media_player.volume_up
+      target:
+        entity_id: "{{ satellite.device_media_player }}"
+    verbosity: beep
+
+  own_volume_down:
+    title: Turn yourself down
+    topic: own_volume
+    icon: mdi:volume-minus
+    description: bajar el volumen del propio satélite
+    examples: [habla más bajo, habla más flojo, baja tu volumen, bájate el volumen]
+    require: [[habla más bajo, habla más bajito, habla más flojo, baja tu volumen, bájate el volumen, baja tu voz]]
+    action:
+      action: media_player.volume_down
+      target:
+        entity_id: "{{ satellite.device_media_player }}"
+    verbosity: beep
+
+  own_volume_set:
+    title: Set your volume
+    topic: own_volume
+    icon: mdi:volume-equal
+    description: ajustar el volumen del propio satélite
+    # Also turned up or down to a number: "sube tu volumen al cincuenta".
+    require: [[tu volumen, tu voz, ponte]]
+    optional: [[pon, con, cambia, ajusta, sube, baja], [por ciento]]
+    exclude: [cuánto, qué]
+    number: percentage
+    action:
+      action: media_player.volume_set
+      target:
+        entity_id: "{{ satellite.device_media_player }}"
+      data:
+        volume_level: "{{ slots.percentage / 100 }}"
+    verbosity: beep
+    response:
+      done:
+        brief: Hecho.
+        specific: Mi volumen está al {{ slots.percentage }} por ciento.
+
   never_mind:
     title: Never mind
     icon: mdi:close-circle-outline
     description: no hacer nada
-    # Said whole only: "cancela el temporizador" is the timer's.
+    # Said whole only: "cancela el temporizador" is the timer's. Nothing to do,
+    # and by default nothing said, not even a sound: the satellite stops
+    # listening. Give it a response (Only respond) or a beep to hear that it did.
     examples: [olvídalo, déjalo, da igual, no importa, cancela, cancelar, nada, es igual]

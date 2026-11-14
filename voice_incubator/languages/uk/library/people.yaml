@@ -1,0 +1,16 @@
+# The people who live here (Ukrainian), as the English library's
+# people.yaml (People page).
+#
+# Who is speaking is who the app takes them to be: their voice, else whose
+# wake word it was, else the only person -- as "мій" means (voice_incubator/
+# people.py, speaking).
+title: People
+icon: mdi:account
+
+commands:
+  who_am_i:
+    title: Who am I
+    icon: mdi:account-voice
+    description: сказати, хто говорить
+    examples: ["хто я", "хто (говорить|розмовляє)", "ти знаєш хто я", "як мене звати", "як моє ім'я"]
+    response: "{% if speaker.name %}Ти {{ speaker.name }}.{% else %}Вибач, я не знаю, хто говорить.{% endif %}"

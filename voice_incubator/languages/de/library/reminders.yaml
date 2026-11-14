@@ -1,36 +1,96 @@
-# Reminders and calendar (German), as the English library's reminders.yaml.
+# Reminders and calendar (German), as the English library's reminders.yaml:
+# reminders, and what's on the speaker's calendar.
 title: Reminders and calendar
 icon: mdi:calendar-clock
 
+# Commands shown together in Add a command: each one's topic.
+topics:
+  reminders: {title: Reminders, icon: mdi:calendar-clock}
+
 commands:
+  my_calendar:
+    title: What's on my calendar
+    icon: mdi:calendar-account
+    description: sagen, was heute in meinem Kalender steht
+    # The rest of today on the speaker's own calendar (People page); where
+    # nobody has one, this one.
+    examples: ["was steht [heute] in meinem kalender", "was steht heute an", "was habe ich heute [vor]"]
+    require: [[mein kalender, meinem kalender, meinen kalender, mein terminkalender, meinem terminkalender, meine termine]]
+    optional: [[was, steht, stehen, sind, habe ich], [heute, für heute], [an]]
+    slots:
+      entity: [calendar.family]
+    mine: calendar
+    action:
+      - action: calendar.get_events
+        target:
+          entity_id: "{{ slots.entity }}"
+        data:
+          end_date_time: "{{ today_at('23:59:59').isoformat() }}"
+        response_variable: found
+      - variables:
+          reply:
+            events: "{{ found[slots.entity[0]].events | map(attribute='summary') | list }}"
+      - stop: Read the calendar
+        response_variable: reply
+    response:
+      done: >-
+        {% set events = result.events or [] %}
+        {% if not events %}Für den Rest des Tages steht nichts in deinem Kalender.
+        {% elif events | count == 1 %}Heute hast du noch {{ events[0] }}.
+        {% else %}Heute hast du noch {{ events[:-1] | join(', ') }} und {{ events[-1] }}.{% endif %}
+    needs:
+      - Give each person their calendar (People page). Where nobody has one,
+        it reads this one (calendar.family here).
+
   remind_me:
-    title: Remember something
-    icon: mdi:note-edit-outline
-    description: an etwas erinnert werden
-    # "Erinnere mich daran, die Wäsche aufzuhängen", "erinnere mich an den Müll".
+    title: Remind me
+    topic: reminders
+    icon: mdi:calendar-clock
+    description: eine Erinnerung hinzufügen
+    # With a time, an event on the Voice Incubator calendar that is said on this
+    # satellite then: "erinnere mich um 17 Uhr daran, Mama anzurufen",
+    # "erinnere mich jeden Dienstag um 19 Uhr daran, den Müll rauszubringen",
+    # "erinnere mich in 10 Minuten, nach dem Ofen zu sehen". Without one, it
+    # goes on the to-do list.
     require: [[erinnere mich, erinner mich]]
-    optional: [[daran, an]]
     wildcard:
       slot: reminder
-      after: [daran, an, erinnere mich, erinner mich]
+      after: [erinnere mich, erinner mich]
       to_end: true
-      max_words: 10
-    # The speaker's own to-do list, when anyone has one (People page).
+      max_words: 16
     slots:
       entity: [todo.reminders]
+    # The speaker's own to-do list, when anyone has one (People page).
     mine: todo_list
-    action:
-      action: todo.add_item
-      target:
-        entity_id: "{{ slots.entity }}"
-      data:
-        item: "{{ slots.reminder }}"
+    timer: reminder
     verbosity: specific
-    response:
-      done:
-        brief: Ich erinnere dich.
-        specific: "Ich erinnere dich daran: {{ slots.reminder }}."
     needs:
-      - Point it at a to-do list (todo.reminders here). Where someone has a
-        to-do list of their own (People page), theirs, and they must be
-        recognized.
+      - Point it at a to-do list (todo.reminders here) for reminders without a
+        time. Where someone has a to-do list of their own (People page), theirs,
+        and they must be recognized.
+
+  cancel_reminder:
+    title: Cancel a reminder
+    topic: reminders
+    icon: mdi:calendar-remove
+    description: eine Erinnerung löschen
+    # On the Voice Incubator calendar, by what it is about, when it is, or both:
+    # "lösche meine Erinnerung, Mama anzurufen", "lösche die Erinnerung für
+    # morgen", "lösche die Erinnerung um 17 Uhr"; with one, the only one.
+    require: [[lösche, lösch, löschen, entferne, entfern, vergiss, abbrechen, brich ... ab, streiche, streich],
+              [erinnerung, erinnerungen]]
+    wildcard: {slot: reminder, after: [erinnerung, erinnerungen], to_end: true, max_words: 12}
+    combinations: [[], [reminder]]
+    timer: cancel_reminder
+    verbosity: specific
+
+  reminder_status:
+    title: Say the reminders
+    topic: reminders
+    icon: mdi:calendar-clock
+    description: sagen, welche Erinnerungen anstehen
+    examples: ["welche erinnerungen habe ich", "habe ich [irgendwelche] erinnerungen", "was sind meine erinnerungen"]
+    require: [[erinnerungen, erinnerung]]
+    optional: [[was, welche], [sind, ist, stehen], [habe ich, hab ich, gibt es], [an]]
+    exclude: [erinnere mich, erinner mich, lösche, lösch, löschen, entferne, vergiss, setze, setz, füge]
+    timer: reminder_status

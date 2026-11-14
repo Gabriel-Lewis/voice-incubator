@@ -20,11 +20,12 @@ PACK = Pack(
     transducer="stt_es_fastconformer_hybrid_large_pc-transducer",
     transducer_about="stt_es_fastconformer_hybrid_large_pc, 115M parameters",
     piper="es_ES-davefx-medium.onnx",
+    piper_languages=("es_ES", "es_MX", "es_AR"),
     adapt={
         "language": "es",
         "filler": [
             "el", "la", "los", "las", "un", "una", "unos", "unas", "en", "de", "del", "a", "al", "mi", "mis", "me",
-            "por favor", "puedes", "podrías", "quiero que",
+            "por favor", "puedes", "podrías", "quiero",
         ],
         "name_cues": ["el", "la", "los", "las", "del", "al", "mi", "mis", "llamado", "llamada"],
     },

@@ -10,6 +10,10 @@ import re
 PLACE_BEFORE = ("in", "im", "ins", "auf", "am", "an", "zu", "zum", "zur", "nach", "bei", "beim")
 ARTICLES = ("der", "die", "das", "dem", "den", "des")
 
+WHEN_STARTS = ("in", "am")
+"""Words of PLACE_BEFORE and ARTICLES an alarm's time or a reminder may start
+with, kept there: "in 20 Minuten", "am Freitag um 7"."""
+
 # ------------------------------------------------------------------- music
 
 MUSIC_GENERIC = {

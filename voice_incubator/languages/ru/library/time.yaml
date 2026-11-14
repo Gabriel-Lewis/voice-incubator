@@ -1,10 +1,17 @@
-# Date and time (Russian), as the English library's time.yaml.
+# Date and time (Russian), as the English library's time.yaml: the time and
+# the date now. A time from now ("который час будет через 45 минут") is a
+# question: the clock skill's.
 title: Date and time
 icon: mdi:clock-outline
+
+# Commands shown together in Add a command: each one's topic.
+topics:
+  date_and_time: {title: Date and time, icon: mdi:clock-outline}
 
 commands:
   what_time:
     title: What time is it
+    topic: date_and_time
     icon: mdi:clock-outline
     description: узнать время
     examples: ["который [сейчас] час", "сколько [сейчас] времени", "скажи который час", "подскажи время"]
@@ -27,6 +34,7 @@ commands:
 
   what_date:
     title: What's the date
+    topic: date_and_time
     icon: mdi:calendar-today
     description: узнать дату
     examples: ["какое [сегодня] число", "какой [сегодня] день", "какая [сегодня] дата", "какой сегодня день недели"]

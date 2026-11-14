@@ -1,0 +1,130 @@
+# Sensors (Russian), as the English library's sensors.yaml: asking a sensor
+# or a binary sensor by its name (Names page): "какая температура на улице",
+# "сколько потребляет сушилка", "входная дверь открыта?", "в подвале
+# протечка?".
+#
+# A sensor says its value as Home Assistant has it, in its unit with the
+# unit's form for the number ("21,5 градуса", "40 процентов"), or its state;
+# a binary sensor says what it is in the words of its device class (открыто
+# or закрыто, протечка or сухо, кто-то есть or никого нет ...), and yes or no
+# when asked about one of them. A name is said as it is, before a colon, or
+# with the gender its first word has ("Входная дверь открыта"). A name may be
+# shared by one in each room: the room said picks it, else the satellite's.
+title: Sensors
+icon: mdi:gauge
+
+commands:
+  sensor_value:
+    title: What a sensor says
+    icon: mdi:gauge
+    description: узнать, что показывает датчик
+    require: [[какая, какой, какое, какие, сколько, что показывает, скажи, какова, каков]]
+    optional: [[сейчас, у, уровень, показания, показывает, потребляет, датчик, датчика, значение]]
+    exclude: [поставь, установи, сделай, включи, выключи]
+    names:
+      entity: {count: 1, domains: [sensor]}
+      area: {count: 1}
+    # A room with the sensor picks it out: the one of that name there.
+    combinations: [[entity], [entity, area]]
+    response: >-
+      {%- set e = slots.entity[0] -%}
+      {%- set name = names.get(e, state_attr(e, 'friendly_name')) -%}
+      {%- set state = states(e) -%}
+      {%- set number = state | float(none) -%}
+      {%- set unit = state_attr(e, 'unit_of_measurement') -%}
+      {%- set units = {'°C': ['градус', 'градуса', 'градусов'], '°F': ['градус', 'градуса', 'градусов'],
+        '%': ['процент', 'процента', 'процентов'], 'W': ['ватт', 'ватта', 'ватт'], 'kW': ['киловатт', 'киловатта', 'киловатт'],
+        'Wh': ['ватт-час', 'ватт-часа', 'ватт-часов'], 'kWh': ['киловатт-час', 'киловатт-часа', 'киловатт-часов'],
+        'V': ['вольт', 'вольта', 'вольт'], 'A': ['ампер', 'ампера', 'ампер'], 'lx': ['люкс', 'люкса', 'люкс'],
+        'ppm': ['частей на миллион', 'частей на миллион', 'частей на миллион'],
+        'ppb': ['частей на миллиард', 'частей на миллиард', 'частей на миллиард'],
+        'µg/m³': ['микрограммов на кубический метр', 'микрограммов на кубический метр', 'микрограммов на кубический метр'],
+        'hPa': ['гектопаскаль', 'гектопаскаля', 'гектопаскалей'], 'mbar': ['миллибар', 'миллибара', 'миллибар'],
+        'inHg': ['дюйм ртутного столба', 'дюйма ртутного столба', 'дюймов ртутного столба'],
+        'mm': ['миллиметр', 'миллиметра', 'миллиметров'], 'cm': ['сантиметр', 'сантиметра', 'сантиметров'],
+        'in': ['дюйм', 'дюйма', 'дюймов'], 'km/h': ['километр в час', 'километра в час', 'километров в час'],
+        'mph': ['миля в час', 'мили в час', 'миль в час'], 'm/s': ['метр в секунду', 'метра в секунду', 'метров в секунду'],
+        'L': ['литр', 'литра', 'литров'], 'gal': ['галлон', 'галлона', 'галлонов'],
+        'm³': ['кубический метр', 'кубических метра', 'кубических метров'], 'min': ['минута', 'минуты', 'минут'],
+        'h': ['час', 'часа', 'часов'], 's': ['секунда', 'секунды', 'секунд'], 'd': ['день', 'дня', 'дней'],
+        'dB': ['децибел', 'децибела', 'децибел'], 'kg': ['килограмм', 'килограмма', 'килограммов'],
+        'lb': ['фунт', 'фунта', 'фунтов'], 'mm/h': ['миллиметр в час', 'миллиметра в час', 'миллиметров в час'],
+        'in/h': ['дюйм в час', 'дюйма в час', 'дюймов в час']} -%}
+      {%- set days = ['понедельник', 'вторник', 'среда', 'четверг', 'пятница', 'суббота', 'воскресенье'] -%}
+      {%- if state in ['unavailable', 'unknown'] -%}
+      {{ name }}: сейчас нет данных.
+      {%- elif number is not none -%}
+      {%- set shown = (number | round(1)) | string -%}
+      {%- set shown = shown[:-2] if shown.endswith('.0') else shown -%}
+      {%- set n = (shown | float | abs) | int -%}
+      {%- set form = 1 if '.' in shown else (0 if n % 10 == 1 and n % 100 != 11 else
+        (1 if n % 10 in [2, 3, 4] and (n % 100 < 12 or n % 100 > 14) else 2)) -%}
+      {{ name }}: {{ shown | replace('.', ',') }}{{ (' ' ~ (units[unit][form] if unit in units else unit)) if unit else '' }}.
+      {%- elif state_attr(e, 'device_class') == 'timestamp' -%}
+      {%- set t = as_local(as_datetime(state)) -%}
+      {{ name }}: {{ days[t.weekday()] }}, {{ t.hour }}:{{ '%02d' % t.minute }}.
+      {%- else -%}
+      {{ name }}: {{ state | replace('_', ' ') }}.
+      {%- endif -%}
+    needs:
+      - Add names for the sensors it may ask about (Names page).
+
+  binary_sensor_state:
+    title: Is a binary sensor on
+    icon: mdi:checkbox-blank-circle-outline
+    description: узнать, включён ли датчик
+    # "Входная дверь открыта?", "в ванной кто-то есть?": the state is the
+    # question.
+    optional: [[ли], [еще, сейчас]]
+    exclude: [открой, закрой, включи, выключи, запри, отопри]
+    names:
+      entity: {count: 1, domains: [binary_sensor]}
+      area: {count: 1}
+    lists:
+      asked: {list: binary_states}
+    combinations: [[entity, asked], [entity, area, asked]]
+    # Home Assistant's words for each device class's two states (as the
+    # binary_states list's values), and Russian's: one that agrees with the
+    # name ("открыт", "открыта") or a phrase said after it.
+    response: >-
+      {%- set e = slots.entity[0] -%}
+      {%- set name = names.get(e, state_attr(e, 'friendly_name')) or e -%}
+      {%- set state = states(e) -%}
+      {%- set kind = state_attr(e, 'device_class') -%}
+      {%- set words = {'door': ['open', 'closed'], 'garage_door': ['open', 'closed'], 'window': ['open', 'closed'],
+        'opening': ['open', 'closed'], 'lock': ['unlocked', 'locked'], 'moisture': ['wet', 'dry'],
+        'motion': ['detecting motion', 'clear'], 'occupancy': ['occupied', 'clear'], 'presence': ['home', 'away'],
+        'plug': ['plugged in', 'unplugged'], 'battery': ['low', 'normal'], 'battery_charging': ['charging', 'not charging'],
+        'connectivity': ['connected', 'disconnected'], 'running': ['running', 'not running'],
+        'smoke': ['detecting smoke', 'clear'], 'gas': ['detecting gas', 'clear'],
+        'carbon_monoxide': ['detecting carbon monoxide', 'clear'], 'problem': ['reporting a problem', 'OK'],
+        'cold': ['cold', 'normal'], 'heat': ['hot', 'normal'], 'light': ['detecting light', 'dark'],
+        'sound': ['detecting sound', 'quiet'], 'vibration': ['vibrating', 'still'], 'tamper': ['tampered with', 'OK'],
+        'safety': ['unsafe', 'safe'], 'update': ['out of date', 'up to date']} -%}
+      {%- set said = {'door': ['открыт*', 'закрыт*'], 'garage_door': ['открыт*', 'закрыт*'], 'window': ['открыт*', 'закрыт*'],
+        'opening': ['открыт*', 'закрыт*'], 'lock': ['отперт*', 'заперт*'], 'moisture': ['протечка', 'сухо'],
+        'motion': ['есть движение', 'движения нет'], 'occupancy': ['кто-то есть', 'никого нет'],
+        'presence': ['дома', 'нет дома'], 'plug': ['в розетке', 'не в розетке'], 'battery': ['батарея садится', 'батарея в норме'],
+        'battery_charging': ['заряжается', 'не заряжается'], 'connectivity': ['в сети', 'не в сети'],
+        'running': ['работает', 'не работает'], 'smoke': ['обнаружен дым', 'дыма нет'], 'gas': ['обнаружен газ', 'газа нет'],
+        'carbon_monoxide': ['обнаружен угарный газ', 'угарного газа нет'], 'problem': ['есть проблема', 'всё в порядке'],
+        'cold': ['холодно', 'норма'], 'heat': ['жарко', 'норма'], 'light': ['светло', 'темно'],
+        'sound': ['есть звук', 'тихо'], 'vibration': ['есть вибрация', 'вибрации нет'],
+        'tamper': ['обнаружено вскрытие', 'всё в порядке'], 'safety': ['небезопасно', 'безопасно'],
+        'update': ['есть обновление', 'обновлений нет']} -%}
+      {%- set pair = words.get(kind, ['on', 'off']) -%}
+      {%- set ours = said.get(kind, ['включен*', 'выключен*']) -%}
+      {%- set last = (name.split(' ')[0] | lower)[-1:] -%}
+      {%- set g = 'f' if last in ['а', 'я', 'ь'] else ('n' if last in ['о', 'е'] else ('p' if last in ['и', 'ы'] else 'm')) -%}
+      {%- set ending = {'m': '', 'f': 'а', 'n': 'о', 'p': 'ы'}[g] -%}
+      {%- set word = ours[0] if state == 'on' else ours[1] -%}
+      {%- set now_is = (name ~ ' ' ~ word[:-1] ~ ending) if word.endswith('*') else (name ~ ': ' ~ word) -%}
+      {%- if state not in ['on', 'off'] -%}
+      {{ name }}: сейчас {{ {'unavailable': 'недоступно', 'unknown': 'нет данных'}.get(state, state) }}.
+      {%- elif slots.asked in pair or slots.asked in ['on', 'off'] -%}
+      {{ 'Да' if (slots.asked in [pair[0], 'on']) == (state == 'on') else 'Нет' }}, {{ now_is }}.
+      {%- else -%}
+      {{ now_is }}.
+      {%- endif -%}
+    needs:
+      - Add names for the binary sensors it may ask about (Names page).

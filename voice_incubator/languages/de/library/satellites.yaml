@@ -1,12 +1,114 @@
-# About the satellite itself (German), as the English library's satellites.yaml.
+# The satellites (German), as the English library's satellites.yaml:
+# announcements between them, the intercom, a satellite's own volume, and
+# never mind.
+#
+# An announcement is said on the other satellites, after a chime: every one, or
+# those in the area or on the floor named. One in a call, ringing a timer or
+# joined by the intercom says it once that is over (within a minute).
+#
+# The intercom joins this satellite and the one in the area named, once this
+# call ends: what is said at each is heard at the other. Both stop answering
+# wake words and blink their rings until the button on either is pressed (or
+# after half an hour). Both need firmware that can.
 title: Satellites
 icon: mdi:speaker-wireless
 
+# Commands shown together in Add a command: each one's topic.
+topics:
+  own_volume: {title: Satellite volume, icon: mdi:volume-equal}
+
 commands:
+  announce:
+    title: Announce
+    icon: mdi:bullhorn
+    description: etwas auf den anderen Satelliten durchsagen
+    # "Durchsage, das Essen ist fertig", "sag allen, das Essen ist fertig",
+    # "Durchsage im Obergeschoss, das Essen ist fertig", "verkünde in der
+    # Küche, dass das Essen fertig ist".
+    require: [[durchsage, sag allen, sage allen, verkünde, verkünden]]
+    optional: [[mach, mache], [dass], [in, im, auf, an]]
+    names:
+      area: {count: 1}
+      floor: {count: 1}
+    combinations: [[message], [area, message], [floor, message]]
+    wildcard:
+      slot: message
+      after: [durchsage, sag allen, sage allen, verkünde, verkünden, dass]
+      to_end: true
+      max_words: 15
+    announce: "{{ slots.message }}"
+
+  intercom:
+    title: Intercom
+    icon: mdi:phone-in-talk
+    description: über den Satelliten mit einem anderen Raum sprechen
+    # "Verbinde mich mit der Küche", "Gegensprechanlage zur Küche", "ruf die
+    # Küche an", "verbinde mich mit dem Satelliten im Büro".
+    require: [[verbinde, verbind, verbinden, gegensprechanlage, ruf ... an, rufe ... an]]
+    optional: [[mich, uns], [mit, zu, zum, zur], [satellit, satelliten, sprachassistent, sprachassistenten], [in, im]]
+    names:
+      area: {count: 1}
+    intercom: connect
+    needs:
+      - Give the satellites their areas (each one's page), and the areas names
+        (Names page). The button on either satellite ends it.
+
+  # The satellite's own speaker, whatever plays on it: what its dial sets.
+  own_volume_up:
+    title: Turn yourself up
+    topic: own_volume
+    icon: mdi:volume-plus
+    description: die eigene Lautstärke des Satelliten erhöhen
+    examples: [sprich lauter, rede lauter, mach dich lauter, dreh dich lauter, deine lautstärke hoch]
+    require: [[sprich lauter, rede lauter, mach dich lauter, dreh dich lauter, dreh dich hoch, deine lautstärke hoch,
+               deine lautstärke erhöhen, erhöhe deine lautstärke]]
+    action:
+      action: media_player.volume_up
+      target:
+        entity_id: "{{ satellite.device_media_player }}"
+    verbosity: beep
+
+  own_volume_down:
+    title: Turn yourself down
+    topic: own_volume
+    icon: mdi:volume-minus
+    description: die eigene Lautstärke des Satelliten verringern
+    examples: [sprich leiser, rede leiser, mach dich leiser, dreh dich leiser, deine lautstärke runter]
+    require: [[sprich leiser, rede leiser, mach dich leiser, dreh dich leiser, dreh dich runter, deine lautstärke runter,
+               deine lautstärke verringern, verringere deine lautstärke]]
+    action:
+      action: media_player.volume_down
+      target:
+        entity_id: "{{ satellite.device_media_player }}"
+    verbosity: beep
+
+  own_volume_set:
+    title: Set your volume
+    topic: own_volume
+    icon: mdi:volume-equal
+    description: die eigene Lautstärke des Satelliten einstellen
+    # Also turned up or down to a number: "dreh dich auf fünfzig hoch".
+    require: [[deine lautstärke, dich]]
+    optional: [[stelle, stell, setze, setz, mach, mache, dreh, drehe], [hoch, runter, lauter, leiser], [auf], [prozent]]
+    exclude: [um]
+    number: percentage
+    action:
+      action: media_player.volume_set
+      target:
+        entity_id: "{{ satellite.device_media_player }}"
+      data:
+        volume_level: "{{ slots.percentage / 100 }}"
+    verbosity: beep
+    response:
+      done:
+        brief: Erledigt.
+        specific: Meine Lautstärke ist auf {{ slots.percentage }} Prozent.
+
   never_mind:
     title: Never mind
     icon: mdi:close-circle-outline
-    description: nichts tun
+    description: die Anfrage abbrechen
     # Said whole only: "brich den Timer ab" is the timer's. Nothing to do, and
     # by default nothing said, not even a sound: the satellite stops listening.
+    # Give it a response (Only respond) or a beep to hear that it did.
     examples: [vergiss es, egal, abbrechen, nichts, schon gut]

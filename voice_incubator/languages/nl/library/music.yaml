@@ -7,8 +7,21 @@
 # of the sentence, spelled from the transducer's transcript) and plays the
 # closest match; "het album …", "nummers van …", "de afspeellijst …", "… van
 # …" narrow it (the language's reading).
+#
+# Pausing, skipping, the volume and muting are any media player's: with
+# nothing named, whatever plays in the satellite's area (its own music first),
+# a TV among them. "De muziek" (kind: music) is Music Assistant's players
+# only, "de tv" (kind: tv) the TVs (their device class) -- "pauzeer de tv",
+# "zet de muziek in de keuken zachter".
 title: Music
 icon: mdi:music
+
+# Commands shown together in Add a command: each one's topic.
+topics:
+  play: {title: Play music, icon: mdi:music}
+  playback: {title: Pause and skip, icon: mdi:pause}
+  volume: {title: Volume, icon: mdi:volume-high}
+  shuffle_and_repeat: {title: Shuffle and repeat, icon: mdi:shuffle-variant}
 
 # What the versions add to a command (merged into them with <<).
 shared:
@@ -17,8 +30,8 @@ shared:
       entity: {count: 1, domains: [media_player]}
     combinations: [[entity]]
     needs:
-      - Add names for the players it may act on (Names page). A player must be
-        a Music Assistant player.
+      - Add names for the players it may act on (Names page). Any media player
+        can be paused, skipped or turned up; music plays on Music Assistant's.
   place: &place
     names:
       area: {count: 1}
@@ -26,11 +39,13 @@ shared:
     combinations: [[area], [floor]]
     needs:
       - Add names for the areas and floors it may act in (Names page). It acts
-        on the Music Assistant players there.
+        on the Music Assistant players added there on the Names page (and, to
+        pause, skip or turn up, the other media players added there).
 
 commands:
   play_music:
     title: Play music
+    topic: play
     icon: mdi:music
     description: een artiest, album, nummer of afspeellijst afspelen
     require: [[speel, luister naar]]
@@ -52,8 +67,23 @@ commands:
         title: Play music in an area or floor
         combinations: [[area, query], [floor, query]]
 
+  play_my_playlist:
+    title: Play my playlist
+    topic: play
+    icon: mdi:playlist-star
+    description: mijn afspeellijst afspelen
+    # The speaker's own (People page), on this satellite's player.
+    examples: ["speel mijn afspeellijst", "speel mijn playlist", "speel mijn muziek", "zet mijn afspeellijst op",
+               "zet mijn muziek op"]
+    music: play
+    mine: playlist
+    verbosity: specific
+    needs:
+      - Give each person their playlist (People page), as Music Assistant names it.
+
   add_to_queue:
     title: Add to the queue
+    topic: play
     icon: mdi:playlist-plus
     description: iets aan de wachtrij toevoegen
     require: [[voeg, zet], [wachtrij]]
@@ -75,6 +105,7 @@ commands:
 
   play_similar:
     title: Play music like it
+    topic: play
     icon: mdi:radio
     description: meer muziek zoals deze afspelen
     require: [[vergelijkbaars, meer zoals dit, muziek zoals, nummers zoals, iets zoals, vergelijkbare muziek]]
@@ -99,51 +130,66 @@ commands:
 
   pause_music:
     title: Pause the music
+    topic: playback
     icon: mdi:pause
     description: de muziek pauzeren
     require: [[pauze, pauzeer, pauzeren]]
-    optional: [[muziek, nummer, afspelen], [in, op, bij], [de, het]]
-    exclude: [timer]
+    optional: [[nummer, afspelen], [in, op, bij], [de, het]]
+    exclude: [timer, timers]
+    lists:
+      kind: {list: media_kinds}
     music: pause
     verbosity: beep
     variants:
       here:
         title: Pause the music in this satellite's area
-        examples: ["pauze", "pauzeer de muziek", "muziek pauzeren"]
+        combinations: [[], [kind]]
+        examples: [pauze, pauzeer]
       device:
         <<: *player
         title: Pause the music on a different device
+        lists: null
+        optional: [[muziek, nummer, afspelen], [in, op, bij], [de, het]]
       place:
         <<: *place
         title: Pause the music in an area or floor
+        combinations: [[area], [floor], [area, kind], [floor, kind]]
 
   resume_music:
     title: Resume the music
+    topic: playback
     icon: mdi:play
     description: de muziek hervatten
     require: [[hervat, hervatten, verder, ga verder, speel verder]]
-    optional: [[muziek, afspelen], [in, op, bij], [de, het]]
-    exclude: [timer]
+    optional: [[afspelen], [in, op, bij], [de, het]]
+    exclude: [timer, timers]
+    lists:
+      kind: {list: media_kinds}
     music: resume
     verbosity: beep
     variants:
       here:
         title: Resume the music in this satellite's area
-        examples: ["hervat de muziek", "speel verder", "ga verder"]
+        combinations: [[], [kind]]
+        examples: [hervat, speel verder, ga verder]
       device:
         <<: *player
         title: Resume the music on a different device
+        lists: null
+        optional: [[muziek, afspelen], [in, op, bij], [de, het]]
       place:
         <<: *place
         title: Resume the music in an area or floor
+        combinations: [[area], [floor], [area, kind], [floor, kind]]
 
   stop_music:
     title: Stop the music
+    topic: playback
     icon: mdi:stop
     description: de muziek stoppen
     require: [[stop, stoppen, uit], [muziek, afspelen, nummer]]
     optional: [[zet, doe], [in, op, bij], [de, het]]
-    exclude: [timer]
+    exclude: [timer, timers]
     music: stop
     verbosity: beep
     variants:
@@ -158,143 +204,195 @@ commands:
 
   next_track:
     title: Next track
+    topic: playback
     icon: mdi:skip-next
     description: naar het volgende nummer gaan
     require: [[volgende, volgend, overslaan, sla ... over]]
     optional: [[nummer, liedje, track], [speel], [in, op, bij], [de, het]]
+    lists:
+      kind: {list: media_kinds}
     music: next
     verbosity: beep
     variants:
       here:
         title: Next track in this satellite's area
+        combinations: [[], [kind]]
         examples: ["volgend nummer", "volgende", "sla dit nummer over"]
       device:
         <<: *player
         title: Next track on a different device
+        lists: null
       place:
         <<: *place
         title: Next track in an area or floor
+        combinations: [[area], [floor], [area, kind], [floor, kind]]
 
   previous_track:
     title: Previous track
+    topic: playback
     icon: mdi:skip-previous
     description: naar het vorige nummer gaan
     require: [[vorige, vorig, terug]]
     optional: [[nummer, liedje, track], [speel, ga], [in, op, bij], [de, het]]
+    lists:
+      kind: {list: media_kinds}
     music: previous
     verbosity: beep
     variants:
       here:
         title: Previous track in this satellite's area
+        combinations: [[], [kind]]
         examples: ["vorig nummer", "vorige", "ga terug"]
       device:
         <<: *player
         title: Previous track on a different device
+        lists: null
       place:
         <<: *place
         title: Previous track in an area or floor
+        combinations: [[area], [floor], [area, kind], [floor, kind]]
 
   volume_up:
     title: Turn it up
+    topic: volume
     icon: mdi:volume-plus
     description: het geluid harder zetten
     require: [[harder, luider, volume omhoog, volume hoger]]
-    optional: [[zet, draai, maak], [wat, een beetje, iets], [muziek, geluid], [in, op, bij], [de, het]]
-    exclude: [licht, lichten, helderheid, verwarming, temperatuur]
+    optional: [[zet, draai, maak], [wat, een beetje, iets], [geluid, volume], [in, op, bij], [de, het]]
+    exclude: [licht, lichten, lamp, lampen, helderheid, verwarming, temperatuur, thermostaat, airco]
+    lists:
+      kind: {list: media_kinds}
     music: volume_up
     verbosity: beep
     variants:
       here:
         title: Turn it up in this satellite's area
+        combinations: [[], [kind]]
         examples: [harder, zet harder, volume omhoog]
       device:
         <<: *player
         title: Turn it up on a different device
+        lists: null
+        optional: [[zet, draai, maak], [wat, een beetje, iets], [muziek, geluid, volume], [in, op, bij], [de, het]]
       place:
         <<: *place
         title: Turn it up in an area or floor
+        combinations: [[area], [floor], [area, kind], [floor, kind]]
 
   volume_down:
     title: Turn it down
+    topic: volume
     icon: mdi:volume-minus
     description: het geluid zachter zetten
     require: [[zachter, stiller, volume omlaag, volume lager]]
-    optional: [[zet, draai, maak], [wat, een beetje, iets], [muziek, geluid], [in, op, bij], [de, het]]
-    exclude: [licht, lichten, helderheid, verwarming, temperatuur]
+    optional: [[zet, draai, maak], [wat, een beetje, iets], [geluid, volume], [in, op, bij], [de, het]]
+    exclude: [licht, lichten, lamp, lampen, helderheid, verwarming, temperatuur, thermostaat, airco]
+    lists:
+      kind: {list: media_kinds}
     music: volume_down
     verbosity: beep
     variants:
       here:
         title: Turn it down in this satellite's area
+        combinations: [[], [kind]]
         examples: [zachter, zet zachter, volume omlaag]
       device:
         <<: *player
         title: Turn it down on a different device
+        lists: null
+        optional: [[zet, draai, maak], [wat, een beetje, iets], [muziek, geluid, volume], [in, op, bij], [de, het]]
       place:
         <<: *place
         title: Turn it down in an area or floor
+        combinations: [[area], [floor], [area, kind], [floor, kind]]
 
   set_volume:
     title: Set the volume
+    topic: volume
     icon: mdi:volume-equal
     description: het volume instellen
-    require: [[volume]]
-    optional: [[zet, verander, maak], [procent], [in, op, bij], [de, het]]
+    # Also turned up or down to a number: "zet de tv harder op 50", "zet het
+    # volume lager naar 20 procent"; never the lights', the heating's or the
+    # air conditioning's, by a number ("zet hem 20 harder", "met 20"), or in
+    # some minutes.
+    require: [[volume, harder, zachter, luider]]
+    optional: [[zet, verander, maak, draai], [volume], [hoger, lager], [op, naar], [procent], [in, op, bij], [de, het]]
+    exclude: [licht, lichten, lamp, lampen, helderheid, verwarming, temperatuur, thermostaat, graden, graad, airco,
+              met, minuut, minuten, uur, uren, seconde, seconden]
     number: percentage
+    lists:
+      kind: {list: media_kinds}
     music: volume_set
     verbosity: beep
     variants:
       here:
         title: Set the volume in this satellite's area
+        combinations: [[percentage], [kind, percentage]]
       device:
         <<: *player
         title: Set the volume on a different device
+        lists: null
         combinations: [[entity, percentage]]
       place:
         <<: *place
         title: Set the volume in an area or floor
-        combinations: [[area, percentage], [floor, percentage]]
+        combinations: [[area, percentage], [floor, percentage], [area, kind, percentage], [floor, kind, percentage]]
 
   mute_music:
     title: Mute
+    topic: volume
     icon: mdi:volume-off
     description: het geluid dempen
     require: [[dempen, demp, geluid uit, mute]]
-    optional: [[zet], [muziek], [in, op, bij], [de, het]]
+    optional: [[zet], [in, op, bij], [de, het]]
+    lists:
+      kind: {list: media_kinds}
     music: mute
     verbosity: beep
     variants:
       here:
         title: Mute this satellite
+        combinations: [[], [kind]]
         examples: ["dempen", "geluid uit"]
       device:
         <<: *player
         title: Mute a different device
+        lists: null
+        optional: [[zet], [muziek], [in, op, bij], [de, het]]
       place:
         <<: *place
         title: Mute an area or floor
+        combinations: [[area], [floor], [area, kind], [floor, kind]]
 
   unmute_music:
     title: Unmute
+    topic: volume
     icon: mdi:volume-high
     description: het geluid weer aanzetten
     require: [[geluid aan, dempen opheffen, unmute]]
     optional: [[zet, weer], [in, op, bij], [de, het]]
+    lists:
+      kind: {list: media_kinds}
     music: unmute
     verbosity: beep
     variants:
       here:
         title: Unmute this satellite
+        combinations: [[], [kind]]
         examples: ["geluid [weer] aan", "dempen opheffen"]
       device:
         <<: *player
         title: Unmute a different device
+        lists: null
+        optional: [[zet, weer], [muziek], [in, op, bij], [de, het]]
       place:
         <<: *place
         title: Unmute an area or floor
+        combinations: [[area], [floor], [area, kind], [floor, kind]]
 
   shuffle_on:
     title: Shuffle
+    topic: shuffle_and_repeat
     icon: mdi:shuffle-variant
     description: de muziek willekeurig afspelen
     require: [[shuffle, willekeurig, door elkaar]]
@@ -315,6 +413,7 @@ commands:
 
   shuffle_off:
     title: Stop shuffling
+    topic: shuffle_and_repeat
     icon: mdi:shuffle-disabled
     description: niet meer willekeurig afspelen
     require: [[shuffle, willekeurig], [uit, stop, niet meer]]
@@ -334,6 +433,7 @@ commands:
 
   repeat_one:
     title: Repeat this song
+    topic: shuffle_and_repeat
     icon: mdi:repeat-once
     description: dit nummer herhalen
     require: [[herhaal, herhalen, opnieuw, nog een keer], [dit nummer, dit liedje, dit lied]]
@@ -353,6 +453,7 @@ commands:
 
   repeat_all:
     title: Repeat
+    topic: shuffle_and_repeat
     icon: mdi:repeat
     description: de muziek herhalen
     require: [[herhaal, herhalen, herhaling]]
@@ -373,6 +474,7 @@ commands:
 
   repeat_off:
     title: Stop repeating
+    topic: shuffle_and_repeat
     icon: mdi:repeat-off
     description: niet meer herhalen
     require: [[herhalen, herhaling, herhaal], [uit, stop, niet meer]]
@@ -394,6 +496,7 @@ commands:
   # playing anywhere) to the device, area or floor named, queue and all.
   move_music:
     title: Move the music
+    topic: play
     icon: mdi:cast-audio
     description: de muziek naar een andere kamer of speaker verplaatsen
     require: [[verplaats, stuur, breng], [muziek, nummer, afspeellijst]]
@@ -412,6 +515,7 @@ commands:
 
   whats_playing:
     title: What's playing
+    topic: play
     icon: mdi:playlist-music
     description: weten wat er speelt
     require: [[wat speelt er, wat is dit, welk nummer, welk liedje, wie zingt, wie is dit, wat hoor ik]]

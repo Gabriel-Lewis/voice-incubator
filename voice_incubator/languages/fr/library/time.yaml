@@ -1,21 +1,31 @@
-# Date and time (French), as the English library's time.yaml.
+# Date and time (French), as the English library's time.yaml: the time and
+# the date now. A time from now ("quelle heure sera-t-il dans 45 minutes") is
+# a question: the clock skill's.
 title: Date and time
 icon: mdi:clock-outline
+
+# Commands shown together in Add a command: each one's topic.
+topics:
+  date_and_time: {title: Date and time, icon: mdi:clock-outline}
 
 commands:
   what_time:
     title: What time is it
+    topic: date_and_time
     icon: mdi:clock-outline
     description: savoir l'heure
     examples: ["quelle heure est il", "il est quelle heure"]
     require: [[quelle heure, l'heure]]
     optional: [[est il, il est], [maintenant], [dis moi]]
-    # Other times: "à quelle heure ferme le magasin", "quelle heure est-il à Tokyo".
-    exclude: [ferme, ouvre, après, avant, jusqu'à, à]
+    # Other times: "à quelle heure ferme le magasin", "quelle heure sera-t-il
+    # dans 45 minutes" (that one is answered as a question), "à quelle heure
+    # est mon réveil".
+    exclude: [ferme, ouvre, après, avant, jusqu'à, à, sera, serait, réveil, réveils, alarme, alarmes, minutes, minute]
     response: "Il est {{ now().hour }} {{ 'heure' if now().hour == 1 else 'heures' }}{{ (' ' ~ now().minute) if now().minute else '' }}."
 
   what_date:
     title: What's the date
+    topic: date_and_time
     icon: mdi:calendar-today
     description: savoir la date
     examples: ["quel jour sommes nous", "quelle est la date [aujourd'hui]", "on est quel jour"]

@@ -16,6 +16,11 @@ colors:
 on_off:
   "on": [aan, ingeschakeld]
   "off": [uit, uitgeschakeld]
+media_kinds:
+  # What plays (Music library): "de muziek" is Music Assistant's players, "de
+  # tv" the media players whose device class is tv.
+  music: [muziek]
+  tv: [tv, televisie, teevee]
 cover_classes:
   awning: [luifel, luifels, zonnescherm, zonneschermen]
   blind: [jaloezie, jaloezieën, luxaflex]
@@ -32,11 +37,71 @@ open_closed:
 locked_unlocked:
   locked: [op slot, vergrendeld]
   unlocked: [van het slot, ontgrendeld]
+color_temperatures:
+  "2700": [warm wit, warm]
+  "3000": [zacht wit]
+  "4000": [neutraal wit, natuurlijk wit, neutraal]
+  "5000": [koel wit, koud wit, koel]
+  "6500": [daglicht]
+forecast_days:
+  today: [vandaag]
+  tomorrow: [morgen]
+  day_after_tomorrow: [overmorgen]
+  monday: [maandag]
+  tuesday: [dinsdag]
+  wednesday: [woensdag]
+  thursday: [donderdag]
+  friday: [vrijdag]
+  saturday: [zaterdag]
+  sunday: [zondag]
+  weekend: [dit weekend, het weekend, weekend]
+weather_kinds:
+  rain: [regen, regenen, regent, paraplu, nat]
+  snow: [sneeuw, sneeuwen, sneeuwt]
+fan_modes:
+  auto: [auto, automatisch]
+  "on": [aan, altijd aan]
+  "off": [uit]
+  low: [laag]
+  medium: [middel, gemiddeld]
+  high: [hoog]
+  circulate: [circuleren, circulatie]
+  # Both at once, where a thermostat's modes are ("on_low", "auto_high").
+  auto_low: [auto laag, automatisch laag]
+  auto_medium: [auto middel, automatisch middel]
+  auto_high: [auto hoog, automatisch hoog]
+  on_low: [aan laag]
+  on_medium: [aan middel]
+  on_high: [aan hoog]
+binary_states:
+  # What a binary sensor is asked to be ("is de voordeur open"): the words
+  # for each of its device classes' two states (Sensors library group). Not
+  # op slot or van het slot: "is de voordeur op slot" is the lock's (Covers
+  # and locks), which asks a binary sensor of the lock class too.
+  "on": [aan]
+  "off": [uit]
+  open: [open]
+  closed: [dicht, gesloten]
+  wet: [nat, lek]
+  dry: [droog]
+  occupied: [bezet]
+  clear: [vrij, leeg]
+  home: [thuis]
+  away: [weg, afwezig]
+  connected: [verbonden, online]
+  disconnected: [verbroken, offline]
+  running: [actief, bezig]
+  charging: [aan het opladen, aan het laden]
+  plugged in: [aangesloten, ingeplugd]
+  unplugged: [losgekoppeld, uitgeplugd]
+  low: [laag, bijna leeg]
+  cold: [koud]
+  hot: [heet, warm]
 hvac_modes:
   "off": [uit]
   heat: [verwarmen, verwarming]
-  cool: [koelen, koeling]
+  cool: [koelen, koeling, airco]
   heat_cool: [verwarmen en koelen]
   auto: [automatisch, auto]
   dry: [ontvochtigen, drogen]
-  fan_only: [ventileren, alleen ventilator]
+  fan_only: [ventileren, alleen ventilator, alleen de ventilator]

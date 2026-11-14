@@ -16,6 +16,10 @@ import re
 PLACE_BEFORE = ("в", "во", "на", "у", "к", "ко", "при")
 ARTICLES = ("мой", "моя", "мою", "мое", "моё", "мои", "моей", "моем", "моём", "моих", "этой", "этом", "этот", "эту")
 
+WHEN_STARTS = ("в", "во")
+"""Words of PLACE_BEFORE and ARTICLES an alarm's time or a reminder may start
+with, kept there: "в понедельник", "во вторник"."""
+
 # ------------------------------------------------------------------- music
 
 MUSIC_GENERIC = {

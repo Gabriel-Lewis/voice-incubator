@@ -1,10 +1,16 @@
 # Covers and locks (Dutch), as the English library's home.yaml: opening,
-# closing, locking, and asking about them. Covers by type ("de rolluiken",
-# "de garagedeur") need no names: their device class says what they are, and
-# the area or floor named -- else the satellite's area -- where. When nothing
-# of that type is in the satellite's area, every one in the home is meant.
+# closing, setting to a position, locking, and asking about them. Covers by
+# type ("de rolluiken", "de garagedeur") need no names: their device class
+# says what they are, and the area or floor named -- else the satellite's
+# area -- where. When nothing of that type is in the satellite's area, every
+# one in the home is meant.
 title: Covers and locks
 icon: mdi:door
+
+# Commands shown together in Add a command: each one's topic.
+topics:
+  covers: {title: Blinds and covers, icon: mdi:blinds-horizontal}
+  locks: {title: Locks, icon: mdi:lock}
 
 # What the versions add to a command (merged into them with <<).
 shared:
@@ -26,8 +32,11 @@ shared:
       kitchen).
 
 commands:
+  # The blinds (by type) in the satellite's area, in an area or on a floor
+  # named, or a cover by name.
   open_covers:
     title: Open covers
+    topic: covers
     icon: mdi:blinds-open
     description: de rolluiken openen
     require: [[open, openen, omhoog, optrekken, ophalen]]
@@ -55,6 +64,7 @@ commands:
           'shutter': 'rolluiken', 'window': 'ramen'} -%}
         {%- set where = (' ' ~ place.said) if (slots.area or slots.floor) else '' -%}
         Er zijn geen {{ kinds[slots.device_class] }}{{ where }}.
+    formerly: [open_cover]
     variants:
       here:
         title: Open the blinds in this satellite's area
@@ -81,6 +91,7 @@ commands:
 
   close_covers:
     title: Close covers
+    topic: covers
     icon: mdi:blinds
     description: de rolluiken sluiten
     require: [[dicht, sluit, sluiten, dichtdoen, omlaag, neer]]
@@ -109,6 +120,7 @@ commands:
           'shutter': 'rolluiken', 'window': 'ramen'} -%}
         {%- set where = (' ' ~ place.said) if (slots.area or slots.floor) else '' -%}
         Er zijn geen {{ kinds[slots.device_class] }}{{ where }}.
+    formerly: [close_cover]
     variants:
       here:
         title: Close the blinds in this satellite's area
@@ -133,8 +145,72 @@ commands:
         title: Close the blinds in an area or floor
         combinations: [[area, device_class], [floor, device_class]]
 
+  # "Zet de rolluiken op 50 procent": 100 is open, 0 dicht. Only covers that
+  # can be set to a position are (supports); the others there are left out.
+  cover_position:
+    title: Set covers to a position
+    topic: covers
+    icon: mdi:blinds-horizontal
+    description: de rolluiken op een stand zetten
+    require: [[zet, doe, draai, open, sluit, laat]]
+    optional: [[alle], [op, tot, naar], [procent], [open, dicht, omhoog, omlaag, neer]]
+    exclude: [is, zijn, staat, staan]
+    lists:
+      device_class: {list: cover_classes}
+    number: percentage
+    supports: position
+    intent:
+      name: HassSetPosition
+      slots: {position: "{{ slots.percentage }}", domain: cover, device_class: "{{ slots.device_class }}"}
+      anywhere: true
+    verbosity: specific
+    response:
+      done: >-
+        {%- set kinds = {'awning': ['de luifel', 'de luifels'], 'blind': ['de jaloezie', 'de jaloezieën'],
+          'curtain': ['het gordijn', 'de gordijnen'], 'door': ['de deur', 'de deuren'],
+          'garage': ['de garagedeur', 'de garagedeuren'], 'gate': ['het hek', 'de hekken'],
+          'shade': ['het rolgordijn', 'de rolgordijnen'], 'shutter': ['het rolluik', 'de rolluiken'],
+          'window': ['het raam', 'de ramen']} -%}
+        {%- set where = (' ' ~ place.said) if (slots.area or slots.floor) else '' -%}
+        Ik zet {{ kinds[slots.device_class][0 if result.count == 1 else 1] }}{{ where }} op {{ slots.percentage }} procent.
+      no_devices: >-
+        {%- set kinds = {'awning': 'luifels', 'blind': 'jaloezieën', 'curtain': 'gordijnen',
+          'door': 'deuren', 'garage': 'garagedeuren', 'gate': 'hekken', 'shade': 'rolgordijnen',
+          'shutter': 'rolluiken', 'window': 'ramen'} -%}
+        {%- set where = (' ' ~ place.said) if (slots.area or slots.floor) else '' -%}
+        Er zijn geen {{ kinds[slots.device_class] }}{{ where }}.
+      not_supported: >-
+        {%- set kinds = {'awning': 'luifels', 'blind': 'jaloezieën', 'curtain': 'gordijnen',
+          'door': 'deuren', 'garage': 'garagedeuren', 'gate': 'hekken', 'shade': 'rolgordijnen',
+          'shutter': 'rolluiken', 'window': 'ramen'} -%}
+        {%- set where = (' ' ~ place.said) if (slots.area or slots.floor) else '' -%}
+        De {{ kinds[slots.device_class] }}{{ where }} kunnen niet op een stand gezet worden.
+    variants:
+      here:
+        title: Set the blinds in this satellite's area to a position
+        needs: *nothing_here
+      device:
+        <<: *cover
+        title: Set a cover to a position by name
+        icon: mdi:window-shutter-settings
+        description: iets op een stand zetten
+        lists: null
+        combinations: [[entity, percentage], [entity, area, percentage]]
+        intent:
+          name: HassSetPosition
+          slots: {position: "{{ slots.percentage }}"}
+        response:
+          done: "Ik zet {{ names.get(slots.entity[0], state_attr(slots.entity[0], 'friendly_name')) }} op {{ slots.percentage }} procent."
+        needs:
+          - Add names for the covers it may set (Names page).
+      place:
+        <<: *place
+        title: Set the blinds in an area or floor to a position
+        combinations: [[area, device_class, percentage], [floor, device_class, percentage]]
+
   lock:
     title: Lock a lock
+    topic: locks
     icon: mdi:lock
     description: een deur op slot doen
     require: [[op slot, vergrendel, vergrendelen, afsluiten, sluit ... af]]
@@ -157,6 +233,7 @@ commands:
 
   unlock:
     title: Unlock a lock
+    topic: locks
     icon: mdi:lock-open-variant
     description: een deur van het slot doen
     require: [[van het slot, ontgrendel, ontgrendelen]]
@@ -175,12 +252,12 @@ commands:
         brief: Gaat van het slot.
         specific: "{{ names.get(slots.entity[0], state_attr(slots.entity[0], 'friendly_name')) }} gaat van het slot."
     needs:
-      - Add names for the locks it may unlock (Names page). Anyone the satellite
-        hears can unlock them; keep it to the satellites that should with a
-        command group.
+      - Add names for the locks it may unlock (Names). Anyone a satellite hears
+        can unlock them; turn it off in the areas that shouldn't.
 
   lock_all:
     title: Lock up
+    topic: locks
     icon: mdi:shield-lock
     description: alle deuren op slot doen
     examples: ["doe alles op slot", "doe alle deuren op slot", "vergrendel alle deuren"]
@@ -196,6 +273,7 @@ commands:
 
   are_covers_open:
     title: Are covers open
+    topic: covers
     icon: mdi:blinds-horizontal
     description: weten of de rolluiken open zijn
     require: [[is, zijn, staat, staan]]
@@ -239,6 +317,7 @@ commands:
       {{ (ns.opened[:-1] | join(', ') ~ ' en ' ~ ns.opened[-1]) if count > 1 else ns.opened[0] }}
       {{- ' is' if count == 1 else ' zijn' }} open.
       {%- endif -%}
+    formerly: [is_cover_open]
     variants:
       here:
         title: Are the blinds open in this satellite's area
@@ -271,6 +350,7 @@ commands:
 
   is_locked:
     title: Is a lock locked
+    topic: locks
     icon: mdi:lock-question
     description: weten of een deur op slot is
     require: [[is, zijn, staat]]
@@ -304,6 +384,7 @@ commands:
 
   all_locked:
     title: Is everything locked
+    topic: locks
     icon: mdi:lock-alert
     description: weten of alle deuren op slot zijn
     require: [[is, zijn, staat, staan], [alle, alles, deuren]]

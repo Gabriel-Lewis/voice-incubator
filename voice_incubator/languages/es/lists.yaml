@@ -40,3 +40,70 @@ hvac_modes:
   auto: [automático, auto]
   dry: [deshumidificar, seco]
   fan_only: [ventilador, solo ventilador]
+media_kinds:
+  # What plays (Music library): "la música" is Music Assistant's players, "la
+  # tele" the media players whose device class is tv.
+  music: [música]
+  tv: [tele, televisión, televisor]
+color_temperatures:
+  "2700": [blanco cálido, luz cálida, cálido, cálida]
+  "3000": [blanco suave, luz suave, suave]
+  "4000": [blanco neutro, blanco natural, luz neutra, neutro, neutra, natural]
+  "5000": [blanco frío, luz fría, frío, fría]
+  "6500": [luz de día, luz diurna]
+forecast_days:
+  today: [hoy]
+  tomorrow: [mañana]
+  day_after_tomorrow: [pasado mañana]
+  monday: [lunes]
+  tuesday: [martes]
+  wednesday: [miércoles]
+  thursday: [jueves]
+  friday: [viernes]
+  saturday: [sábado]
+  sunday: [domingo]
+  weekend: [fin de semana, este fin de semana, finde]
+weather_kinds:
+  rain: [lluvia, llover, llueva, lloverá, llueve, lluvioso, paraguas]
+  snow: [nieve, nevar, nevará, nieva, nevando]
+fan_modes:
+  # "Enciende" and "apaga" too: "enciende el ventilador del termostato".
+  auto: [automático, auto]
+  "on": [encendido, siempre encendido, enciende]
+  "off": [apagado, apaga]
+  low: [bajo, baja, mínimo]
+  medium: [medio, media]
+  high: [alto, alta, máximo]
+  circulate: [circular, circulación]
+  # Both at once, where a thermostat's modes are ("on_low", "auto_high").
+  auto_low: [automático bajo]
+  auto_medium: [automático medio]
+  auto_high: [automático alto]
+  on_low: [encendido bajo]
+  on_medium: [encendido medio]
+  on_high: [encendido alto]
+binary_states:
+  # What a binary sensor is asked to be ("¿está abierta la puerta
+  # principal?"): the words for each of its device classes' two states
+  # (Sensors library group). Not locked or unlocked: "¿está bloqueada la
+  # puerta principal?" is the lock's (Covers and locks), which asks a binary
+  # sensor of the lock class too.
+  "on": [encendido, encendida]
+  "off": [apagado, apagada]
+  open: [abierto, abierta, abiertos, abiertas]
+  closed: [cerrado, cerrada, cerrados, cerradas]
+  wet: [mojado, mojada, húmedo, húmeda, goteando]
+  dry: [seco, seca]
+  occupied: [ocupado, ocupada]
+  clear: [libre, vacío, vacía]
+  home: [en casa]
+  away: [fuera, fuera de casa, ausente]
+  connected: [conectado, conectada, en línea]
+  disconnected: [desconectado, desconectada, sin conexión]
+  running: [en marcha, funcionando]
+  charging: [cargando]
+  plugged in: [enchufado, enchufada]
+  unplugged: [desenchufado, desenchufada]
+  low: [bajo, baja]
+  cold: [frío, fría]
+  hot: [caliente]

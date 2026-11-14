@@ -18,6 +18,7 @@ PACK = Pack(
     transducer="stt_it_fastconformer_hybrid_large_pc-transducer",
     transducer_about="stt_it_fastconformer_hybrid_large_pc, 115M parameters",
     piper="it_IT-serena-medium.onnx",
+    piper_languages=("it_IT",),
     adapt={
         "language": "it",
         "filler": [

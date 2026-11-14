@@ -1,8 +1,23 @@
-# Climate (Italian), as the English library's climate.yaml.
+# Climate (Italian), as the English library's climate.yaml: the home's
+# thermostat (Settings), or one a command is given (its implied target): what
+# it's set to and how warm it is inside, setting it, its mode (caldo, freddo,
+# spento ...), and its fan. Setting it is a version of Set the temperature,
+# whose other sets a thermostat by name, through Home Assistant's intent.
+#
+# Setting the temperature sets the one the thermostat keeps: in heat and cool
+# mode it keeps two, and Home Assistant refuses one alone. Modes are the
+# hvac_modes list's and fan modes the fan_modes list's, Home Assistant's
+# values said in Italian, matched to the thermostat's own by their words
+# (supports): "bassa" is its "on_low" or "auto_low", whichever is like what it
+# is set to now. A thermostat that can't is told.
 title: Climate
 icon: mdi:thermostat
 
-# What the versions add to a command (merged into them with <<).
+# Commands shown together in Add a command: each one's topic.
+topics:
+  thermostat: {title: Thermostat, icon: mdi:thermostat}
+
+# What the commands share (merged into them with <<, or as a whole).
 shared:
   device: &device
     names:
@@ -10,17 +25,73 @@ shared:
       area: {count: 1}
     # A room with the device picks it out: the one of that name there.
     combinations: [[entity], [entity, area]]
+  needs: &needs
+    - Set the home's thermostat in Settings, or give it one of its own
+      (its implied target).
+  # Warmer or cooler by slots.step degrees Celsius -- 1.8 times as many,
+  # rounded, on a thermostat in Fahrenheit (its highest above 50) -- within
+  # its limits: the temperature it keeps, or in heat and cool mode both ends.
+  # Off, or keeping none, it says so.
+  temperature_step: &temperature_step
+    - variables:
+        thermostat: "{{ slots.entity[0] }}"
+        by: >-
+          {{ ((slots.step | float) * (1.8 if (state_attr(thermostat, 'max_temp') or 0) | float > 50 else 1)) | round(0) }}
+        lowest: "{{ state_attr(thermostat, 'min_temp') | float(-1000) }}"
+        highest: "{{ state_attr(thermostat, 'max_temp') | float(1000) }}"
+        kept: "{{ state_attr(thermostat, 'temperature') }}"
+        low: "{{ state_attr(thermostat, 'target_temp_low') }}"
+        high: "{{ state_attr(thermostat, 'target_temp_high') }}"
+        is_off: {outcome: "off"}
+        keeps_none: {outcome: keeps_none}
+    - if: "{{ is_state(thermostat, 'off') }}"
+      then:
+        - stop: The thermostat is off
+          response_variable: is_off
+    - if: "{{ kept is number }}"
+      then:
+        - variables:
+            changed: {to: "{{ [[kept + by, lowest] | max, highest] | min }}"}
+        - action: climate.set_temperature
+          target:
+            entity_id: "{{ thermostat }}"
+          data:
+            temperature: "{{ changed.to }}"
+        - stop: Changed the temperature
+          response_variable: changed
+    - if: "{{ low is number and high is number }}"
+      then:
+        - variables:
+            changed: {low: "{{ [low + by, lowest] | max }}", high: "{{ [high + by, highest] | min }}"}
+        - action: climate.set_temperature
+          target:
+            entity_id: "{{ thermostat }}"
+          data:
+            target_temp_low: "{{ changed.low }}"
+            target_temp_high: "{{ changed.high }}"
+        - stop: Changed the temperatures
+          response_variable: changed
+    - stop: The thermostat keeps no temperature
+      response_variable: keeps_none
+  # What a step says when it changed nothing.
+  temperature_said: &temperature_said
+    "off": Il termostato è spento.
+    keeps_none: Il termostato non sta mantenendo nessuna temperatura.
 
 commands:
+  # The thermostat (the home's, or one of its own), or a thermostat by name
+  # (Home Assistant's intent). Also the heating: "imposta il riscaldamento a
+  # 20 gradi".
   set_temperature:
     title: Set the temperature
+    topic: thermostat
     icon: mdi:thermometer
     description: regolare la temperatura
     supports: temperature
     require: [[temperatura, gradi, grado, riscaldamento]]
     optional: [[imposta, metti, regola, porta, alza, abbassa], [gradi, grado], [termostato]]
-    # A question about degrees is not a setting: "quanto fanno 20 gradi in
-    # Fahrenheit".
+    # A question about degrees is not a setting: "a quanto è impostato il
+    # termostato", "quanto fanno 20 gradi in Fahrenheit" (the units skill).
     exclude: [quanto, quanti, quale, converti, fa, fanno, è, sono]
     number: temperature
     intent:
@@ -32,11 +103,25 @@ commands:
       done:
         brief: Temperatura impostata.
         specific: >-
-          {{ names.get(slots.entity[0], state_attr(slots.entity[0], 'friendly_name')) if slots.entity
-          else 'Temperatura ' ~ place.said }} a {{ slots.temperature | string | replace('.', ',') }} gradi.
+          {{ names.get(slots.entity[0], state_attr(slots.entity[0], 'friendly_name')) }} a {{ slots.temperature | string | replace('.', ',') }} gradi.
+    formerly: [set_thermostat]
     variants:
       here:
-        title: Set the temperature in this satellite's area
+        title: Set the thermostat
+        description: impostare il termostato a una temperatura
+        intent: null
+        home: climate
+        action:
+          - action: climate.set_temperature
+            target:
+              entity_id: "{{ slots.entity }}"
+            data:
+              temperature: "{{ slots.temperature }}"
+        response:
+          done:
+            brief: Termostato impostato.
+            specific: Termostato a {{ slots.temperature | string | replace('.', ',') }} gradi.
+        needs: *needs
       device:
         <<: *device
         title: Set the temperature of a thermostat by name
@@ -48,3 +133,202 @@ commands:
         combinations: [[entity, temperature], [entity, area, temperature]]
         needs:
           - Add names for the thermostats it may set (Names page).
+
+  thermostat:
+    title: Ask the thermostat
+    topic: thermostat
+    icon: mdi:thermostat
+    description: dire a quanto è impostato il termostato e quanti gradi ci sono in casa
+    examples: ["a quanto è (impostato|regolato) il termostato", "a quanto è il termostato", "quanti gradi ci sono in casa",
+               "che temperatura c'è in casa", "quanto fa caldo in casa"]
+    require: [[termostato, in casa, dentro]]
+    optional: [[quanto, quanti, quale, qual è, che, com'è], [è, impostato, regolato, gradi, temperatura, ci sono, c'è, fa, caldo, freddo]]
+    exclude: [imposta, metti, regola, porta, alza, abbassa, modalità, ventola]
+    home: climate
+    response: >-
+      {%- set e = slots.entity[0] -%}
+      {%- set inside = state_attr(e, 'current_temperature') -%}
+      {%- set to = state_attr(e, 'temperature') -%}
+      {%- set low = state_attr(e, 'target_temp_low') -%}
+      {%- set high = state_attr(e, 'target_temp_high') -%}
+      {%- set mode = states(e) -%}
+      {%- set modes = {'heat': 'riscaldamento', 'cool': 'raffreddamento', 'heat_cool': 'caldo e freddo',
+        'auto': 'automatico', 'dry': 'deumidificazione', 'fan_only': 'solo ventilazione'} -%}
+      {{ "In casa ci sono " ~ (inside | round) ~ " gradi. " if inside is not none else "" }}
+      {%- if mode == 'off' -%}Il termostato è spento.
+      {%- elif to is not none -%}Il termostato è impostato a {{ to | round }} gradi.
+      {%- elif low is not none and high is not none -%}Il termostato la tiene tra {{ low | round }} e {{ high | round }} gradi.
+      {%- else -%}Il termostato è in modalità {{ modes.get(mode, mode | replace('_', ' ')) }}.
+      {%- endif -%}
+    needs: *needs
+
+  heat_up:
+    title: Turn up the heat
+    topic: thermostat
+    icon: mdi:thermometer-chevron-up
+    description: alzare il riscaldamento
+    # "Alza il riscaldamento", "alza un po' la temperatura"; to a number, it's
+    # Set the thermostat (Set the temperature's version).
+    require: [[alza, aumenta, alzare, aumentare], [riscaldamento, temperatura, termostato]]
+    optional: [[un po', un poco]]
+    exclude: [quanto, quanti, è]
+    home: climate
+    slots: {step: 1}
+    action: *temperature_step
+    # Not seen at once: what it's set to now, said.
+    verbosity: specific
+    response:
+      <<: *temperature_said
+      done:
+        brief: Ho alzato il riscaldamento.
+        specific: >-
+          {%- macro deg(t) -%}{%- set n = t | default(0, true) | float -%}{{ n | int if n == n | int else n | round(1) | string | replace('.', ',') }}{%- endmacro -%}
+          Ho alzato il termostato a {{ (deg(result.to) if result.to is defined
+          else 'tra ' ~ deg(result.low) ~ ' e ' ~ deg(result.high)) }} gradi.
+    needs: *needs
+
+  heat_down:
+    title: Turn down the heat
+    topic: thermostat
+    icon: mdi:thermometer-chevron-down
+    description: abbassare il riscaldamento
+    require: [[abbassa, diminuisci, abbassare, diminuire], [riscaldamento, temperatura, termostato]]
+    optional: [[un po', un poco]]
+    exclude: [quanto, quanti, è]
+    home: climate
+    slots: {step: -1}
+    action: *temperature_step
+    verbosity: specific
+    response:
+      <<: *temperature_said
+      done:
+        brief: Ho abbassato il riscaldamento.
+        specific: >-
+          {%- macro deg(t) -%}{%- set n = t | default(0, true) | float -%}{{ n | int if n == n | int else n | round(1) | string | replace('.', ',') }}{%- endmacro -%}
+          Ho abbassato il termostato a {{ (deg(result.to) if result.to is defined
+          else 'tra ' ~ deg(result.low) ~ ' e ' ~ deg(result.high)) }} gradi.
+    needs: *needs
+
+  thermostat_mode:
+    title: Ask the thermostat's mode
+    topic: thermostat
+    icon: mdi:thermostat
+    description: dire in che modalità è il termostato e cosa sta facendo
+    examples: ["in che modalità è il termostato", "che modalità ha il termostato", "cosa sta facendo il termostato",
+               "il termostato sta (riscaldando|raffreddando)"]
+    require: [[termostato], [modalità, sta facendo, riscaldando, raffreddando, funzionando, in funzione]]
+    optional: [[che, cosa, quale, qual è], [è, ha, sta]]
+    exclude: [imposta, metti, passa, cambia, accendi, spegni, ventola]
+    home: climate
+    response: >-
+      {%- set e = slots.entity[0] -%}
+      {%- set modes = {'heat': 'riscaldamento', 'cool': 'raffreddamento', 'heat_cool': 'caldo e freddo',
+        'auto': 'automatico', 'dry': 'deumidificazione', 'fan_only': 'solo ventilazione'} -%}
+      {%- set doing = {'heating': 'sta riscaldando', 'cooling': 'sta raffreddando', 'drying': 'sta deumidificando',
+        'fan': 'sta facendo girare la ventola', 'preheating': 'si sta scaldando', 'defrosting': 'sta sbrinando',
+        'idle': 'è in attesa'} -%}
+      {%- set mode = states(e) -%}
+      {%- set action = state_attr(e, 'hvac_action') -%}
+      {%- if mode == 'off' -%}Il termostato è spento.
+      {%- else -%}Il termostato è in modalità {{ modes.get(mode, mode | replace('_', ' ')) }}.
+      {%- if action and action != 'off' %} Adesso {{ doing.get(action, action | replace('_', ' ')) }}.{% endif -%}
+      {%- endif -%}
+    needs: *needs
+
+  set_thermostat_mode:
+    title: Set the thermostat's mode
+    topic: thermostat
+    icon: mdi:thermostat
+    description: mettere il termostato su caldo, freddo, automatico o spento
+    # "Metti il termostato in modalità riscaldamento", "passa il termostato
+    # all'aria condizionata", "metti il termostato su spento".
+    require: [[termostato]]
+    optional: [[metti, imposta, passa, cambia, porta], [modalità], [su]]
+    exclude: [che, cosa, quale, è, sta, quanto]
+    lists:
+      mode: {list: hvac_modes}
+    home: climate
+    supports: {hvac_mode: mode}
+    action:
+      - action: climate.set_hvac_mode
+        target:
+          entity_id: "{{ slots.entity }}"
+        data:
+          hvac_mode: "{{ slots.mode }}"
+    verbosity: specific
+    response:
+      done:
+        brief: Termostato impostato.
+        specific: >-
+          {%- set modes = {'heat': 'riscaldamento', 'cool': 'raffreddamento', 'heat_cool': 'caldo e freddo',
+            'auto': 'automatico', 'dry': 'deumidificazione', 'fan_only': 'solo ventilazione'} -%}
+          {%- if slots.mode == 'off' -%}Ho spento il termostato.
+          {%- else -%}Termostato in modalità {{ modes.get(slots.mode, slots.mode) }}.
+          {%- endif -%}
+    needs: *needs
+
+  thermostat_fan:
+    title: Ask the thermostat's fan
+    topic: thermostat
+    icon: mdi:fan
+    description: dire com'è impostata la ventola del termostato
+    examples: ["com'è impostata la ventola [del termostato]", "in che modalità è la ventola [del termostato]",
+               "qual è la modalità della ventola [del termostato]"]
+    require: [[ventola del termostato, modalità della ventola, modalità ventola]]
+    optional: [[che, come, com'è, quale, qual è], [è, impostata, su]]
+    exclude: [metti, imposta, cambia, accendi, spegni, passa]
+    home: climate
+    supports: fan_mode
+    # "Accesa", "spenta", "accesa, su basso": as it is; "automatico": on it.
+    response: >-
+      {%- set words = {'auto': 'automatico', 'low': 'basso', 'medium': 'medio', 'middle': 'medio', 'mid': 'medio',
+        'high': 'alto', 'circulate': 'ricircolo', 'circulation': 'ricircolo', 'diffuse': 'diffuso',
+        'focus': 'concentrato', 'quiet': 'silenzioso', 'top': 'massimo'} -%}
+      {%- set mode = (state_attr(slots.entity[0], 'fan_mode') or '') | lower | replace('_', ' ') -%}
+      {%- set parts = mode.split() -%}
+      {%- set ns = namespace(said=[]) -%}
+      {%- for p in parts if p not in ['on', 'off'] -%}{%- set ns.said = ns.said + [words.get(p, p)] -%}{%- endfor -%}
+      {%- if not mode -%}La ventola del termostato non è impostata.
+      {%- elif parts[0] in ['on', 'off'] -%}La ventola del termostato è {{ 'accesa' if parts[0] == 'on' else 'spenta' }}
+      {{- (', su ' ~ ns.said | join(' ')) if ns.said else '' }}.
+      {%- else -%}La ventola del termostato è su {{ ns.said | join(' ') }}.
+      {%- endif -%}
+    needs: *needs
+
+  set_thermostat_fan:
+    title: Set the thermostat's fan
+    topic: thermostat
+    icon: mdi:fan
+    description: impostare la modalità della ventola del termostato
+    # "Metti la ventola del termostato su automatico", "accendi la ventola
+    # del termostato". A fan alone is a fan's: "accendi il ventilatore".
+    require: [[ventola del termostato, modalità della ventola, modalità ventola]]
+    optional: [[metti, imposta, cambia, passa, porta], [modalità], [su]]
+    exclude: [che, come, com'è, quale, è]
+    lists:
+      mode: {list: fan_modes}
+    home: climate
+    supports: {fan_mode: mode}
+    action:
+      - action: climate.set_fan_mode
+        target:
+          entity_id: "{{ slots.entity }}"
+        data:
+          fan_mode: "{{ slots.mode }}"
+    verbosity: specific
+    response:
+      done:
+        brief: Ventola del termostato impostata.
+        specific: >-
+          {%- set words = {'auto': 'automatico', 'low': 'basso', 'medium': 'medio', 'high': 'alto', 'circulate': 'ricircolo'} -%}
+          {%- set parts = (slots.mode | lower | replace('_', ' ')).split() -%}
+          {%- set ns = namespace(said=[]) -%}
+          {%- for p in parts if p not in ['on', 'off'] -%}{%- set ns.said = ns.said + [words.get(p, p)] -%}{%- endfor -%}
+          {%- if parts and parts[0] in ['on', 'off'] -%}Ho {{ 'acceso' if parts[0] == 'on' else 'spento' }} la ventola del termostato
+          {{- (', su ' ~ ns.said | join(' ')) if ns.said else '' }}.
+          {%- else -%}Ventola del termostato su {{ ns.said | join(' ') }}.
+          {%- endif -%}
+    needs:
+      - Set the home's thermostat in Settings, or give it one of its own
+        (its implied target). Its fan modes are matched by their words to the
+        fan_modes list's (Names page).

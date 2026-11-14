@@ -17,6 +17,7 @@ PACK = Pack(
     transducer="stt_fr_fastconformer_hybrid_large_pc-transducer",
     transducer_about="stt_fr_fastconformer_hybrid_large_pc, 115M parameters",
     piper="fr_FR-siwis-medium.onnx",
+    piper_languages=("fr_FR",),
     adapt={
         "language": "fr",
         "filler": [

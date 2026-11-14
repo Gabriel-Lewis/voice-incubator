@@ -141,9 +141,9 @@ class Pack:
         ctc = self.ctc_dir(root)
         if not (ctc / "model.onnx").is_file() and not has_shared_model(self.transducer_dir(root), ctc):
             missing.append(f"models/{self.ctc}")
-        from voice_incubator.piper_voices import catalog  # pylint: disable=import-outside-toplevel
+        from voice_incubator.piper_voices import everything  # pylint: disable=import-outside-toplevel
 
-        if self.piper.removesuffix(".onnx") not in catalog() and not (root / "models/piper" / self.piper).is_file():
+        if self.piper.removesuffix(".onnx") not in everything() and not (root / "models/piper" / self.piper).is_file():
             missing.append(f"models/piper/{self.piper}")
         return missing
 

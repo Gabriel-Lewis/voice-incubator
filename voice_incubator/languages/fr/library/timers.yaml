@@ -1,18 +1,30 @@
-# Timers (French), as the English library's timers.yaml: on the satellite that
-# set them, with the Voice Incubator integration in Home Assistant. A timer is
-# picked out by:
+# Timers and alarms (French), as the English library's timers.yaml. Timers
+# are on the satellite that set them, with the Voice Incubator integration in
+# Home Assistant. A timer is picked out by:
 #   timer_name  a running timer's name: "annule le minuteur pizza"
 #   timer       free text, for naming a new timer, or matched loosely to the
 #               running ones: "un minuteur appelé pâtes"
 #   duration    "le minuteur de 5 minutes"
 # or it is the only one running. What they say is the language's (its speech
 # module's timer sentences).
+#
+# Timers are the satellite's own, so they have no versions (variants) for a
+# device or a place named. Alarms and reminders with a time are events on the
+# Voice Incubator calendar in Home Assistant, which the app makes, and ring the
+# satellite that set them (what is read and said: the language's calendar
+# module).
 title: Timers and alarms
 icon: mdi:timer-outline
+
+# Commands shown together in Add a command: each one's topic.
+topics:
+  timers: {title: Timers, icon: mdi:timer-outline}
+  alarms: {title: Alarms, icon: mdi:alarm}
 
 commands:
   start_timer:
     title: Start a timer
+    topic: timers
     icon: mdi:timer-plus-outline
     description: lancer un minuteur
     # "Mets un minuteur de 5 minutes", "lance un minuteur pizza pour 10 minutes".
@@ -28,21 +40,54 @@ commands:
 
   set_alarm:
     title: Set an alarm
+    topic: alarms
     icon: mdi:alarm
     description: mettre un réveil
-    # A timer that rings at a clock time: "mets un réveil à sept heures et
-    # demie", "réveille-moi à 7 heures". Without du matin or du soir it is
-    # the next time that comes round.
+    # On the Voice Incubator calendar in Home Assistant: "mets un réveil à sept
+    # heures et demie", "réveille-moi à 6 heures du matin", "un réveil pour six
+    # heures et demie demain matin", "un réveil tous les jours de la semaine à
+    # 6 heures 45", "un réveil demain à 8 heures", "un réveil dans 20 minutes".
+    # Without du matin or du soir it is the next time that comes round; on
+    # another day, the morning.
     require: [[réveil, alarme, réveille moi, réveillez moi]]
-    optional: [[mets, règle, programme], [à, pour]]
-    wildcard: {slot: time, after: [à, pour], to_end: true, max_words: 7}
+    optional: [[mets, mais, règle, programme, crée], [à, pour, dans]]
+    wildcard: {slot: time, after: [réveil, alarme, réveille moi, réveillez moi, réveille-moi, réveillez-moi], to_end: true, max_words: 9}
+    exclude: [quel, quels, quelle, quelles, quand, annule, supprime, enlève, désactive]
     timer: alarm
     verbosity: specific
     response:
       missing_time: Pour quelle heure dois-je mettre le réveil ?
 
+  cancel_alarm:
+    title: Cancel an alarm
+    topic: alarms
+    icon: mdi:alarm-off
+    description: annuler un réveil
+    # "Annule mon réveil", "supprime le réveil de 7 heures", "désactive le
+    # réveil de demain". Said over a ringing alarm without a time, it only
+    # stops it.
+    require: [[annule, annuler, supprime, supprimer, enlève, désactive, désactiver, éteins], [réveil, réveils, alarme, alarmes]]
+    optional: [[de, du, pour]]
+    wildcard: {slot: time, after: [réveil, réveils, alarme, alarmes, de, du, pour], max_words: 6}
+    combinations: [[], [time]]
+    timer: cancel_alarm
+    verbosity: specific
+
+  alarm_status:
+    title: Say the alarms
+    topic: alarms
+    icon: mdi:alarm-check
+    description: savoir quels réveils sont réglés
+    examples: ["quels réveils (ai je|j'ai)", "quand sonne mon réveil", "est ce que j'ai des réveils", "à quelle heure est mon réveil"]
+    require: [[réveil, réveils, alarme, alarmes]]
+    optional: [[quel, quels, quelle, quelles, quand, à quelle heure], [est, sont, sonne], [ai je, j'ai, est ce que, y a t il],
+               [réglé, réglés, programmé, programmés]]
+    exclude: [annule, annuler, supprime, enlève, désactive, éteins, mets, mais, règle, programme, réveille moi, pour, dans]
+    timer: alarm_status
+
   cancel_timer:
     title: Cancel a timer
+    topic: timers
     icon: mdi:timer-off-outline
     description: annuler un minuteur
     require: [[annule, annuler, arrête, arrêter, supprime, supprimer, stoppe], [minuteur, minuterie, timer]]
@@ -58,6 +103,7 @@ commands:
 
   cancel_all_timers:
     title: Cancel every timer
+    topic: timers
     icon: mdi:timer-cancel-outline
     description: annuler tous les minuteurs
     require: [[annule, annuler, arrête, arrêter, supprime, supprimer, stoppe], [tous], [minuteurs, minuteur, minuteries, timers]]
@@ -70,6 +116,7 @@ commands:
 
   pause_timer:
     title: Pause a timer
+    topic: timers
     icon: mdi:timer-pause-outline
     description: mettre un minuteur en pause
     require: [[pause, mets ... en pause, mais ... en pause, suspends], [minuteur, minuterie, timer]]
@@ -85,6 +132,7 @@ commands:
 
   resume_timer:
     title: Resume a timer
+    topic: timers
     icon: mdi:timer-play-outline
     description: reprendre un minuteur
     require: [[reprends, reprendre, relance, relancer, redémarre], [minuteur, minuterie, timer]]
@@ -100,6 +148,7 @@ commands:
 
   timer_status:
     title: How long is left
+    topic: timers
     icon: mdi:timer-sand
     description: savoir combien de temps il reste
     examples: ["combien de temps reste t il", "il reste combien de temps"]
@@ -117,6 +166,7 @@ commands:
 
   add_time:
     title: Add time to a timer
+    topic: timers
     icon: mdi:clock-plus-outline
     description: ajouter du temps à un minuteur
     # "Ajoute 5 minutes au minuteur pizza", "rajoute 2 minutes au minuteur".
@@ -134,6 +184,7 @@ commands:
 
   subtract_time:
     title: Take time off a timer
+    topic: timers
     icon: mdi:clock-minus-outline
     description: enlever du temps à un minuteur
     # "Enlève 2 minutes au minuteur", "retire 2 minutes du minuteur pizza".

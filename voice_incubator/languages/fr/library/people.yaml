@@ -1,0 +1,14 @@
+# People (French), as the English library's people.yaml: the people who live
+# here (People page). Who is speaking is who the app takes them to be: their
+# voice, else whose wake word it was, else the only person -- as "mon" means.
+title: People
+icon: mdi:account
+
+commands:
+  who_am_i:
+    title: Who am I
+    icon: mdi:account-voice
+    description: savoir qui parle
+    examples: ["qui suis je", "qui (parle|est en train de parler)", "est ce que tu sais qui je suis", "(quel est|c'est quoi) mon nom",
+               "comment je m'appelle"]
+    response: "{% if speaker.name %}Vous êtes {{ speaker.name }}.{% else %}Désolé, je ne sais pas qui parle.{% endif %}"

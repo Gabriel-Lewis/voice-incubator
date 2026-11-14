@@ -7,15 +7,25 @@
 #               (named "для пасты", as it was said)
 #   duration    "таймер на 5 минут"
 # or it is the only one running. What they say is the language's (its speech
-# module's timer sentences): "Таймер «пицца» запущен". Asked for without how
-# long ("поставь таймер"), it asks: "поставь" would otherwise play music
-# called "таймер".
+# module's timer sentences): "Таймер «пицца» запущен".
+#
+# Timers are the satellite's own, so they have no versions (variants) for a
+# device or a place named. Alarms and reminders with a time are events on the
+# Voice Incubator calendar in Home Assistant, which the app makes, and ring the
+# satellite that set them; when one is for is read by the language's calendar
+# module ("на семь тридцать", "по будням в 6:45", "через 20 минут").
 title: Timers and alarms
 icon: mdi:timer-outline
+
+# Commands shown together in Add a command: each one's topic.
+topics:
+  timers: {title: Timers, icon: mdi:timer-outline}
+  alarms: {title: Alarms, icon: mdi:alarm}
 
 commands:
   start_timer:
     title: Start a timer
+    topic: timers
     icon: mdi:timer-plus-outline
     description: поставить таймер
     # "Поставь таймер на 5 минут", "засеки десять минут", "таймер пицца на
@@ -38,36 +48,71 @@ commands:
         - {multiple_of: 0.25, cost: 0}
         - {cost: 1.0}
     # Each said whole.
-    combinations: [[], [timer], [duration], [duration, timer]]
+    combinations: [[duration], [duration, timer]]
     timer: start
     verbosity: specific
 
   set_alarm:
     title: Set an alarm
+    topic: alarms
     icon: mdi:alarm
     description: поставить будильник
-    # A timer that rings at a clock time: "поставь будильник на семь тридцать",
-    # "разбуди меня в семь утра", "будильник на половину восьмого". Without
-    # "утра" or "вечера" it is the next time that comes round.
-    # Not "буди": heard in "забудь".
-    require: [[будильник, разбуди, разбудите]]
-    optional: [[поставь, поставьте, установи, установите, заведи, заведите, включи], [меня, нас], [на, в, к]]
-    wildcard: {slot: time, after: [на, в, к], to_end: true, max_words: 7}
-    exclude: [отмени, отключи, выключи, удали, убери, сколько]
-    # Without a time it asks for one ("поставь будильник"): "поставь" would
-    # otherwise play music called "будильник".
-    combinations: [[], [time]]
+    # On the Voice Incubator calendar in Home Assistant: "поставь будильник на
+    # семь тридцать", "разбуди меня в шесть утра", "будильник на половину
+    # седьмого завтра", "будильник по будням на 6:45", "будильник на завтра на
+    # 8", "будильник через 20 минут". Without "утра" or "вечера" it is the next
+    # time that comes round; on another day, the morning. Not "буди": heard in
+    # "забудь".
+    require: [[будильник, разбуди меня, разбудите меня, разбуди нас, разбуди, разбудите]]
+    optional: [[поставь, поставьте, установи, установите, заведи, заведите, включи], [на, в, к]]
+    wildcard: {slot: time, after: [будильник, разбуди меня, разбудите меня, разбуди нас, разбуди, разбудите, на, в, к],
+               to_end: true, max_words: 9}
+    exclude: [отмени, отмените, отключи, выключи, удали, убери, сними, сколько, какие, какой, когда, есть ли]
     timer: alarm
     verbosity: specific
     response:
       missing_time: На какое время поставить будильник?
 
+  cancel_alarm:
+    title: Cancel an alarm
+    topic: alarms
+    icon: mdi:alarm-off
+    description: отменить будильник
+    # "Отмени будильник", "удали будильник на семь", "выключи будильник на
+    # завтра", "отмени завтрашний будильник". Said over a ringing alarm
+    # without a time, it only stops it.
+    require: [[отмени, отмените, удали, удалите, убери, уберите, выключи, выключите, отключи, отключите, сними, снимите,
+               останови, остановите], [будильник, будильники, будильника]]
+    optional: [[на, в, во]]
+    # Right after the verb too: Russian has no article to lead text before
+    # "будильник" ("отмени завтрашний будильник").
+    wildcard: {slot: time, before: [будильник], after: [отмени, отмените, удали, удалите, убери, уберите, выключи,
+               выключите, отключи, отключите, сними, снимите, останови, остановите, будильник, на, в, во], max_words: 6}
+    combinations: [[], [time]]
+    timer: cancel_alarm
+    verbosity: specific
+
+  alarm_status:
+    title: Say the alarms
+    topic: alarms
+    icon: mdi:alarm-check
+    description: сказать, какие будильники поставлены
+    examples: ["какие [у меня] будильники", "когда [у меня] будильник", "на какое время [стоит|поставлен] будильник",
+               "есть ли [у меня] будильники", "у меня есть будильники"]
+    require: [[будильник, будильники, будильников, будильника]]
+    optional: [[какие, какой, когда, на какое время, на сколько, есть ли, есть], [у меня, у нас],
+               [стоит, стоят, поставлен, поставлены, заведен, заведены]]
+    exclude: [отмени, отмените, удали, удалите, убери, выключи, отключи, сними, поставь, поставьте, установи, заведи,
+              разбуди]
+    timer: alarm_status
+
   cancel_timer:
     title: Cancel a timer
+    topic: timers
     icon: mdi:timer-off-outline
     description: отменить таймер
     require: [[отмени, отмените, отменить, останови, остановите, выключи, выключите, удали, удалите, сбрось, сбросьте,
-               убери, уберите], [таймер, будильник]]
+               убери, уберите], [таймер]]
     optional: [[минут, минуты, минуту, минута, секунд, секунды, секунду, секунда, часов, часа, час],
                [под названием, с названием]]
     # Not a new one: "поставь таймер для пиццы".
@@ -83,6 +128,7 @@ commands:
 
   cancel_all_timers:
     title: Cancel every timer
+    topic: timers
     icon: mdi:timer-cancel-outline
     description: отменить все таймеры
     require: [[отмени, отмените, останови, остановите, выключи, выключите, удали, удалите, сбрось, убери], [все],
@@ -96,6 +142,7 @@ commands:
 
   pause_timer:
     title: Pause a timer
+    topic: timers
     icon: mdi:timer-pause-outline
     description: поставить таймер на паузу
     require: [[пауза, паузу, поставь на паузу, поставь ... на паузу, приостанови, приостановите], [таймер]]
@@ -112,6 +159,7 @@ commands:
 
   resume_timer:
     title: Resume a timer
+    topic: timers
     icon: mdi:timer-play-outline
     description: продолжить таймер
     require: [[продолжи, продолжите, возобнови, возобновите, сними с паузы, сними ... с паузы, запусти снова,
@@ -129,6 +177,7 @@ commands:
 
   timer_status:
     title: How long is left
+    topic: timers
     icon: mdi:timer-sand
     description: узнать, сколько осталось на таймере
     examples: ["сколько [времени] осталось", "сколько осталось на таймере", "сколько еще осталось"]
@@ -148,6 +197,7 @@ commands:
 
   add_time:
     title: Add time to a timer
+    topic: timers
     icon: mdi:clock-plus-outline
     description: добавить время на таймер
     # "Добавь 5 минут к таймеру", "продли таймер пицца на 5 минут".
@@ -165,6 +215,7 @@ commands:
 
   subtract_time:
     title: Take time off a timer
+    topic: timers
     icon: mdi:clock-minus-outline
     description: убавить время на таймере
     # "Убавь 2 минуты на таймере", "сократи таймер пицца на 2 минуты".

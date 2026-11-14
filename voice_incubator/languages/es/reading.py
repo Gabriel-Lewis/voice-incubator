@@ -11,6 +11,10 @@ import unicodedata
 PLACE_BEFORE = ("en", "a", "al", "del", "por")
 ARTICLES = ("el", "la", "los", "las")
 
+WHEN_STARTS = ("en", "a", "al", "el", "la", "los", "las")
+"""Words of PLACE_BEFORE and ARTICLES an alarm's time or a reminder may start
+with, kept there: "en 20 minutos", "a las ocho", "los lunes" (every Monday)."""
+
 # ------------------------------------------------------------------- music
 
 MUSIC_GENERIC = {
