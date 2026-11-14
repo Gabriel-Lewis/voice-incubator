@@ -75,6 +75,7 @@ from .wake_ratio import DEFAULT_THRESHOLD as DEFAULT_RATIO, RatioVerdict, WakeRa
 from .wake_recordings import TAKE_SCORE, WakeRecording, WakeTakes
 from .wake_recordings import summary as wake_summary
 from .wake_training import WakeTraining, phrase_of, word_id
+from .wake_training_setup import TrainingSetup
 from .wake_words import DEFAULT_MODEL_SLOTS, RATIO_RIVALS, RATIO_THRESHOLD, RESERVED_SLOTS, SPECIAL, STOP, WakeWords
 from .wyoming_server import CONTEXT_KEYS, Endpoints, Heard, HeardCache, Hearing, Remembered, Spoken, Turn, announce
 
@@ -657,6 +658,9 @@ class VoiceIncubatorApp:
             retrainable=self.trained_here,
             builtin=lambda word: (found := self.wake_words.get(word)) is not None and not found.custom,
             fetch_voice=self._fetch_training_voice,
+            # The trainer's Python outside the data folder: made again from
+            # the cache in it at every start (wake_training_setup.py).
+            setup=TrainingSetup(self.store.data_dir, root / "wake-trainer", root / "models"),
         )
         """Training a new wake word from a phrase (the Wake words page)."""
         if options.wake_training_clips:
@@ -822,6 +826,8 @@ class VoiceIncubatorApp:
         if self.speakers is not None:
             await self.speakers.start()
         release_memory()  # what loading the models needed only meanwhile
+        if self.wake_training.setup is not None:
+            self.wake_training.setup.restore()  # what training needs, if installed before
 
         from .web import start_web  # pylint: disable=import-outside-toplevel
 

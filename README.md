@@ -102,7 +102,7 @@ everything it does, page by page.
 
 Without Home Assistant's app store, it runs as a container:
 `ghcr.io/ohf-voice/voice-incubator` (amd64 and aarch64), given Home Assistant's
-address and a long-lived access token. It has no wake word training.
+address and a long-lived access token.
 
 ```bash
 docker run -d --name voice-incubator --network host \

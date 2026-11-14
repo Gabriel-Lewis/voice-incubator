@@ -1,0 +1,102 @@
+{
+ "repo": "rhasspy/voice-incubator-models",
+ "path": "wake-training",
+ "revision": "8e13a8614e25290059055de17310730e216f8837",
+ "unpacked": 2087313022,
+ "files": [
+  {
+   "name": "background/music.tar.gz",
+   "sha256": "2d25452e489f2cb85dce9b3408c7e0cf3df22e408d39cb9674802c942e3a3298",
+   "size": 45342552,
+   "unpack": "background/music"
+  },
+  {
+   "name": "background/noise.tar.gz",
+   "sha256": "ec57ef5cae8dd49138b41acc65b11bf12f19bc28333b63dc0809541fcdfacd13",
+   "size": 188711115,
+   "unpack": "background/noise"
+  },
+  {
+   "name": "base_backbone.weights.h5",
+   "sha256": "b748309546f5ce1b27eae706cff694ec73d644d16e18a59e282a0ec8bba04994",
+   "size": 217000
+  },
+  {
+   "name": "negatives/confusables-qwen.tar.gz",
+   "sha256": "15be111538045fa427f1f8b7565b6689576bdfd5b402fd676bc04a119ab14498",
+   "size": 18186199,
+   "unpack": "negatives/confusables-qwen"
+  },
+  {
+   "name": "negatives/dinner_party.tar.gz",
+   "sha256": "29af7a6f427f43ddbbb1f65ac8c2d4438e1d3dfa214b7db62152264e82ec9e78",
+   "size": 38381089,
+   "unpack": "negatives/dinner_party"
+  },
+  {
+   "name": "negatives/edge.tar.gz",
+   "sha256": "4aa98b5e78d161d2cefbba181fbad1b2a98464b0959d2ab9b5836397a6becb76",
+   "size": 8235574,
+   "unpack": "negatives/edge"
+  },
+  {
+   "name": "negatives/no_speech.tar.gz",
+   "sha256": "66d07e8745631cecd20c24e899dff513a2f59a35872ac750cc6dace67a0317aa",
+   "size": 42153059,
+   "unpack": "negatives/no_speech"
+  },
+  {
+   "name": "negatives/speech.tar.gz",
+   "sha256": "900ee2720667f456cfcbe6a62986eecd03ab4aa1390cbac27ccb8a5d58907c04",
+   "size": 45356779,
+   "unpack": "negatives/speech"
+  },
+  {
+   "name": "negatives/synthetic-negatives-ca.tar.gz",
+   "sha256": "52f78f0a1db24a4db851cef977a12e3f268d975a242e34041ceb510c330af030",
+   "size": 20973866,
+   "unpack": "negatives/synthetic-negatives-ca"
+  },
+  {
+   "name": "negatives/synthetic-negatives-de.tar.gz",
+   "sha256": "5745c211b5dc38ca5ac6ca7bfd11ef332bd5eb2deeef9c752dcb6473603139e7",
+   "size": 21414524,
+   "unpack": "negatives/synthetic-negatives-de"
+  },
+  {
+   "name": "negatives/synthetic-negatives-en.tar.gz",
+   "sha256": "7034bd49d62895d05c6af320fe7888abeee22814fe757ce9e4c905da1d8d5952",
+   "size": 21878125,
+   "unpack": "negatives/synthetic-negatives-en"
+  },
+  {
+   "name": "negatives/synthetic-negatives-es.tar.gz",
+   "sha256": "adce576d08d8fdf2c10ca75158627fe92ec9c878d2220b6d18e9449bd9e8c4c9",
+   "size": 21461921,
+   "unpack": "negatives/synthetic-negatives-es"
+  },
+  {
+   "name": "negatives/synthetic-negatives-fr.tar.gz",
+   "sha256": "9aa697b244e4fe6874ed7e3c91321f5220bac091642dfc880cf50cd4a6f75d90",
+   "size": 21468225,
+   "unpack": "negatives/synthetic-negatives-fr"
+  },
+  {
+   "name": "negatives/synthetic-negatives-it.tar.gz",
+   "sha256": "9f78199af4f0328082fafc0eb06dfb13151edb8facbf5e3f247692739cb6292a",
+   "size": 21623649,
+   "unpack": "negatives/synthetic-negatives-it"
+  },
+  {
+   "name": "negatives/synthetic-negatives-nl.tar.gz",
+   "sha256": "8c365b8a8151f52a4efe0c6c784e32c19f60c29d7247a7ebd5a2d0799f8549fd",
+   "size": 21038578,
+   "unpack": "negatives/synthetic-negatives-nl"
+  },
+  {
+   "name": "kit.yaml",
+   "sha256": "f766b47784229214015cb3e136c7b1ca56bd4c4044016da53113730f6a35976d",
+   "size": 1058
+  }
+ ]
+}

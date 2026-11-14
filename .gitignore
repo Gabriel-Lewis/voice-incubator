@@ -6,6 +6,8 @@
 # Benchmark result dumps (several MB each); scripts/bench_corpus.py regenerates them.
 /tests/bench_*.jsonl
 /wake_words/
+# The wake word trainer's Python, installed from the Wake words page.
+/wake-trainer/
 # Left by script/stage_build, which is gone: safe to delete.
 /local/
 # Python caches (apps-experimental's root ignored them before).

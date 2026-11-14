@@ -3649,6 +3649,11 @@ function wakeWordEditor(word, wake, reload) {
       } }, "Delete") : null));
 }
 
+// Megabytes as said: "640 MB", "2.6 GB".
+function megabytes(mb) {
+  return mb >= 1000 ? `${(mb / 1000).toFixed(1)} GB` : `${Math.round(mb)} MB`;
+}
+
 // A phrase's wake word id, as the app makes it ("Hey, Computer!" -> hey_computer).
 function wakeWordId(phrase) {
   return String(phrase || "").toLowerCase().replace(/[^a-z0-9]+/g, "_").replace(/^_+|_+$/g, "");
@@ -3666,7 +3671,9 @@ function titled(phrase) {
 
 // Training a wake word from a phrase: the form, with whose recordings of it
 // to train with and what to call it, or the job running (followed until it
-// ends), and how the last one went. The phrase suggests what has been
+// ends), and how the last one went. What training needs that the app
+// doesn't carry (TensorFlow, the kit) is installed from here first, and can
+// be removed again. The phrase suggests what has been
 // recorded: everyone's takes, or one speaker's ("okay nabu (Mike)", which
 // fills in their name and theirs alone).
 function wakeTraining(first, reload) {
@@ -3720,6 +3727,15 @@ function wakeTraining(first, reload) {
     if (!document.body.contains(box)) return;
     try { show(await api("GET", "wake_training")); } catch (err) { toast(err.message); }
   }
+  async function install() {
+    try { await api("POST", "wake_training/setup"); poll(); }
+    catch (err) { toast(err.message); }
+  }
+  async function uninstall(ask) {
+    if (ask && !confirm(ask)) return;
+    try { await api("DELETE", "wake_training/setup"); poll(); }
+    catch (err) { toast(err.message); }
+  }
   async function start() {
     const body = { phrase: phrase.value };
     if (name.value.trim()) body.name = name.value.trim();
@@ -3729,6 +3745,19 @@ function wakeTraining(first, reload) {
   }
   function show(status) {
     const job = status.job;
+    const setup = status.setup || {};
+    const needs = setup.needs || [];
+    if (setup.installing) {
+      const kit = setup.installing === "kit";
+      fill(box, h("div", { class: "row" },
+        h("div", { class: "grow" },
+          h("div", {}, kit ? "Downloading the training kit" : "Installing TensorFlow"),
+          kit ? h("progress", { max: 1, value: setup.progress || 0, style: "width:100%" }) : h("progress", { style: "width:100%" }),
+          setup.download_error ? h("div", { class: "muted small" }, `Couldn't download ${setup.download_error}. Trying again.`) : null),
+        h("button", { onclick: () => uninstall() }, "Cancel")));
+      setTimeout(poll, 2000);
+      return;
+    }
     if (job && job.state === "running") {
       followed = true;
       const left = job.seconds_left != null ? ` · about ${Math.max(1, Math.round(job.seconds_left / 60))} min left` : "";
@@ -3746,12 +3775,25 @@ function wakeTraining(first, reload) {
       : job.state === "done" ? h("div", { class: "notice ok" }, `Trained ${job.name || quoted(job.phrase)}${Object.keys(job.recordings || {}).length ? ` with the recordings of ${recordingsText(job.recordings)}` : ""}. `, h("a", { href: `#/wake?word=${encodeURIComponent(job.word)}` }, "Tune it"))
       : job.state === "cancelled" ? null
       : h("div", { class: "notice bad" }, `${job.name || quoted(job.phrase)}: ${job.error || job.state} `, h("a", { href: "api/wake_training/log", target: "_blank" }, "Log"));
+    const parts = { trainer: "TensorFlow", kit: "the training kit" };
+    const installed = setup.installed && !needs.length
+      ? h("div", { class: "row small" }, h("span", { class: "muted" }, setup.used_mb != null ? `Installed: ${megabytes(setup.used_mb)}` : "Installed"),
+          hint("TensorFlow and the training kit, in the app's data. Remove frees the space; training needs them installed again after."),
+          h("button", { onclick: () => uninstall(`Remove TensorFlow and the training kit${setup.used_mb != null ? ` (${megabytes(setup.used_mb)})` : ""}?`) }, "Remove"))
+      : null;
     fill(box, last,
-      status.unavailable ? h("div", { class: "muted" }, status.unavailable)
+      needs.length ? [
+        setup.error ? h("div", { class: "notice bad" }, `${setup.error} `, h("a", { href: "api/wake_training/setup/log", target: "_blank" }, "Log")) : null,
+        h("div", { class: "row" },
+          h("span", {}, `Needs ${needs.map((p) => parts[p]).join(" and ")}.`),
+          hint(`About ${megabytes(setup.download_mb)} to download and ${megabytes(setup.disk_mb)} on disk, in the app's data. Remove frees it again.`),
+          h("button", { class: "primary", onclick: install }, setup.error ? "Try again" : "Install"))]
+      : status.unavailable ? h("div", { class: "muted" }, status.unavailable)
         : [h("div", { class: "row" }, phrase, name,
             hint("What it's called on this page and in the wake word lists: “Okay Nabu (Mike)” for one trained with Mike's recordings, beside the others. Its phrase's name when left empty."),
             button), whose, h("datalist", { id: "wake-recorded" }, options),
-          status.room_hours ? h("div", { class: "muted small" }, `And against ${num(status.room_hours, 0)} h of this home's own audio.`) : null]);
+          status.room_hours ? h("div", { class: "muted small" }, `And against ${num(status.room_hours, 0)} h of this home's own audio.`) : null,
+          installed]);
   }
   show(first);
   return h("div", { class: "panel" },

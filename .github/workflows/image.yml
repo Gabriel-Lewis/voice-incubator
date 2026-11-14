@@ -43,7 +43,6 @@ jobs:
           context: .
           target: standalone
           platforms: ${{ matrix.platform }}
-          build-args: TRAINING=false
           labels: |
             org.opencontainers.image.source=https://github.com/${{ github.repository }}
             org.opencontainers.image.title=Voice Incubator

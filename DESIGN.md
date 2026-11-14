@@ -94,9 +94,10 @@ The rest it downloads the first time it starts. wyoming-wake-kaldi,
 microWakeWord and sentence-stream are vendored beside `voice_incubator/`: nothing
 comes from another checkout.
 
-Training wake words in the app needs `requirements-training.txt` too, in the
-same Python -- 3.13 at the latest: TensorFlow 2.21 has no wheels for 3.14 --
-or in another named by `--wake-trainer-python`.
+Training wake words in the app needs `requirements-training.txt` too: in the
+same Python -- 3.13 at the latest: TensorFlow 2.21 has no wheels for 3.14 --,
+in another named by `--wake-trainer-python`, or installed from the Wake words
+page (below), which needs uv.
 
 Commands, satellites, settings and saved calls live in `var/` (`--data-dir`;
 `/data` as an app). The web UI listens on localhost unless `--http-host` says
@@ -160,14 +161,14 @@ long-lived access token) stand in for `--hass-url` and the token file; one of
 
 `ghcr.io/ohf-voice/voice-incubator` is built from the Dockerfile's
 `standalone` target and published by the Image workflow
-(`.github/workflows/image.yml`), on demand or for a `v*` tag. It has no wake word training (TensorFlow, 2 GB).
+(`.github/workflows/image.yml`), on demand or for a `v*` tag.
 
 The image is the app's without its Supervisor parts, and smaller: what is
 compiled -- adapt-ctc's Viterbi, the wake verifier's decoder, FluidSynth
 without the audio drivers it doesn't use -- is built in a stage of its own,
 and only the Kaldi programs the verifier runs are kept
-(`wyoming_wake_kaldi/prune.py`). The app's image is built the same way, with
-training, by its own Dockerfile in
+(`wyoming_wake_kaldi/prune.py`). Neither image has wake word training in it:
+the Wake words page installs it (below). The app's image is built the same way, by its own Dockerfile in
 [OHF-Voice/app-voice-incubator](https://github.com/OHF-Voice/app-voice-incubator)
 from a release of this source (its version: `voice_incubator/__init__.py`).
 
@@ -420,6 +421,7 @@ automation's page.
 | `voice_incubator/kaldi_mode.py` | Kaldi mode: commands heard by Kaldi, held to the home's example sentences, with a background to refuse the rest; pronunciations (dictionary, yours, phonetisaurus's guesses) |
 | `voice_incubator/wake_words.py` | the wake words a satellite can listen for: built in and verified, or custom; their cutoffs and placement phrases |
 | `voice_incubator/wake_training.py` | training a new wake word from a typed phrase: the kit, the job, the saved model; `wake_positives.py` has Piper say it (rooms, noise, the frontend's features), with speakers' recordings of it, `wake_trainer.py` trains, temperature-scales and exports it (TensorFlow, microWakeWord) |
+| `voice_incubator/wake_training_setup.py` | what training needs installed from the Wake words page: TensorFlow in a venv of its own (uv, its cache in the data folder), the kit downloaded |
 | `voice_incubator/wake_recordings.py` | a speaker saying a wake phrase at a satellite: takes cut by Silero, kept when they sound like them, stored with their voice |
 | `voice_incubator/endpoint.py` | endpointing: Silero VAD, microVAD or both, with hysteresis |
 | `adapt_ctc/` | vendored from adapt-ctc (commit 07ef328) plus value lists, bounded free text, examples first, descriptions and structured rejections; its own README and tests (`tests/adapt_ctc_tests/`) |
@@ -476,6 +478,7 @@ automation's page.
 | `scripts/bench_wake_words.py` | a wake word through both stages on labeled clips, at several cutoffs; sweeps thresholds afterwards |
 | `scripts/check_wake_words.py` | whether custom wake words lower for the device, match TFLite and hear their own phrase |
 | `scripts/make_wake_training_kit.py` | the kit wake words are trained with: 5,000 random spectrograms of each negative set |
+| `scripts/publish_wake_training_kit.py` | the kit packed for the app to download: an archive per set, the same bytes each time, and their manifest |
 | `tests/alignments/` | wake word spans and word boundaries, one JSONL per session |
 | `tests/corpus_corrections.csv` | what was actually said, where it differs from the prompt list |
 | `corpus/positives/` | 32 VPE captures of in-vocabulary commands, for threshold work |
@@ -901,6 +904,29 @@ and each speaker's ("okay nabu (Mike)"), which fills in their name and ticks
 theirs alone. On an HA Green, "okay nabu" with four speakers' recordings and
 36 h of a home's audio trained in 70 minutes (20 making the positives, 48
 training), the Green never below 1.9 GB available.
+
+What training needs that the image doesn't carry is installed from the page
+when wanted (`voice_incubator/wake_training_setup.py`): TensorFlow, about 640
+MB to download on amd64 and 350 MB on aarch64 (2 and 1.5 GB installed), and
+the kit, 536 MB to download (2.1 GB unpacked). TensorFlow is installed as
+Home Assistant's Piper and Whisper apps install their packs: uv downloads the
+pinned wheels (`voice_incubator/wake_trainer_requirements.txt`, compiled from
+`requirements-training.txt` with hashes, for every platform) into
+`<data>/uv-cache`, left out of backups, and the trainer's Python
+(`wake-trainer/`, outside the data folder) is made of symlinks into it. It
+goes with the container and is made again from the cache at every start,
+offline: under half a second. A new Python minor or new pins empty the cache, and the
+start downloads again. Unlike those apps it is a venv of its own rather than
+the app's Python: the trainer is a process of its own already and imports
+nothing of the app, so TensorFlow's numpy can't move the app's and nothing
+needs a restart. The kit is published (`scripts/publish_wake_training_kit.py`)
+as an archive for each negative set and folder of background recordings, the
+same bytes each time, listed with their SHA-256 in
+`voice_incubator/wake_training_kit.json`, and downloaded into
+`models/wake-training` (in the data folder), kit.yaml last. Remove takes both
+away; a kit made by hand (no `.downloaded` in it) is never removed. A
+`--wake-trainer-python` or a Python that has TensorFlow already (a working
+copy's) is used as it is.
 
 The recipe is micro-wake-word's `notebooks/POOLING_AND_PERSONALIZATION.md`:
 the base model's 4-block MixedNet with its last layer's 17 positions

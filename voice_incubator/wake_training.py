@@ -28,7 +28,8 @@ several people's recordings make a model that beats the shipped one.
 What training needs besides the phrase is the **kit** (made by
 scripts/make_wake_training_kit.py): the negative pool, in a directory with a
 ``kit.yaml``, and background recordings (music, noise) to put behind the
-positives. The home's own room audio, when there is some
+positives. Neither it nor TensorFlow is in the image: the page installs them
+when asked (voice_incubator/wake_training_setup.py). The home's own room audio, when there is some
 (``<data>/wake_training/room/<set>/training/<set>_mmap``: microWakeWord
 features, never audio), joins the negatives: the word learns not to fire on
 what that home sounds like, and can listen more eagerly. It stays out of the
@@ -65,6 +66,7 @@ from typing import Any
 
 import yaml
 
+from .wake_training_setup import SetupError, TrainingSetup
 from .wake_words import TRAINED_SUFFIX
 
 _LOGGER = logging.getLogger(__name__)
@@ -251,6 +253,7 @@ class WakeTraining:
         retrainable: Callable[[str], bool] | None = None,
         builtin: Callable[[str], bool] | None = None,
         fetch_voice: Callable[[], Awaitable[None]] | None = None,
+        setup: TrainingSetup | None = None,
     ) -> None:
         self.work_dir = Path(work_dir)
         self.custom_dir = custom_dir
@@ -259,7 +262,10 @@ class WakeTraining:
         self.fetch_voice = fetch_voice
         """Downloads ``voice`` when it isn't here (Piper's catalog has it)."""
         self.language = language
-        self.trainer_python = trainer_python or sys.executable
+        self._trainer_python = trainer_python
+        """The Python given to train with (None: the setup's, or the app's)."""
+        self.setup = setup
+        """Installs what training needs (None: nothing is installed here)."""
         self.micro_wake_word = micro_wake_word
         self.check_model = check_model or (lambda _word: None)
         """None when a saved word runs on the satellite, else why not."""
@@ -275,7 +281,7 @@ class WakeTraining:
         self.job: Job | None = self._load_job()
         self._task: asyncio.Task | None = None
         self._process: asyncio.subprocess.Process | None = None
-        self._trainer_checked: tuple[float, str | None] | None = None
+        self._trainer_checked: tuple[float, tuple[str, int], str | None] | None = None
         self._recordings: dict[str, list[Path]] = {}
         self.room_dir = self.work_dir / "room"
         """The home's own room audio, as negative feature sets."""
@@ -329,11 +335,26 @@ class WakeTraining:
         env["PYTHONPATH"] = os.pathsep.join(filter(None, [*paths, str(APP_ROOT), env.get("PYTHONPATH")]))
         return env
 
+    @property
+    def trainer_python(self) -> str:
+        """The Python the model is trained in: the one given, else the one
+        installed here, else the app's own."""
+        installed = self.setup.python if self.setup is not None else None
+        return self._trainer_python or installed or sys.executable
+
+    @trainer_python.setter
+    def trainer_python(self, python: str | None) -> None:
+        self._trainer_python = python
+        self._trainer_checked = None
+
     async def trainer_missing(self) -> str | None:
-        """What the trainer's Python lacks, if anything (checked once a minute)."""
+        """What the trainer's Python lacks, if anything (checked once a
+        minute, and when it changes)."""
         now = time.monotonic()
-        if self._trainer_checked is not None and now - self._trainer_checked[0] < 60:
-            return self._trainer_checked[1]
+        key = (self.trainer_python, self.setup.generation if self.setup is not None else 0)
+        checked = self._trainer_checked
+        if checked is not None and checked[1] == key and now - checked[0] < 60:
+            return checked[2]
         code = (
             "import importlib.util as u; "
             f"print(','.join(m for m in {TRAINER_MODULES!r} if u.find_spec(m) is None))"
@@ -347,25 +368,64 @@ class WakeTraining:
             missing = out.decode().strip() or None
         except (OSError, asyncio.TimeoutError) as err:
             missing = f"python ({err})"
-        self._trainer_checked = (now, missing)
+        self._trainer_checked = (now, key, missing)
         return missing
 
-    async def unavailable(self) -> str | None:
-        """Why no wake word can be trained here now, if so."""
+    async def blockers(self) -> tuple[str | None, list[str]]:
+        """Why no wake word can be trained here now (None: it can), and what
+        installing would mend of it: trainer (TensorFlow), kit."""
         if self.voice is None:
-            return "Training a wake word isn't available in this language yet."
+            return "Training a wake word isn't available in this language yet.", []
         if not self.voice.is_file() and self.fetch_voice is None:
-            return f"The training voice is missing ({self.voice.name})."
+            return f"The training voice is missing ({self.voice.name}).", []
         if self.custom_dir is None:
-            return "There is no directory for custom wake words."
+            return "There is no directory for custom wake words.", []
+        setup = self.setup
+        if setup is not None and setup.running:
+            return "Training is being installed.", []
+        why: str | None = None
+        needs = []
+        missing = await self.trainer_missing()
+        if missing:
+            if setup is not None and self._trainer_python is None and setup.can_install("trainer"):
+                needs.append("trainer")
+            else:
+                why = f"The trainer's Python lacks {missing.replace(',', ', ')}."
         try:
             self.kit()
         except TrainingError as err:
-            return str(err)
-        missing = await self.trainer_missing()
-        if missing:
-            return f"The trainer's Python lacks {missing.replace(',', ', ')}."
-        return None
+            if setup is not None and setup.can_install("kit"):
+                needs.append("kit")
+            else:
+                why = why or str(err)
+        if why:
+            return why, []
+        return ("Training isn't installed.", needs) if needs else (None, [])
+
+    async def unavailable(self) -> str | None:
+        """Why no wake word can be trained here now, if so."""
+        return (await self.blockers())[0]
+
+    async def install(self) -> None:
+        """What training lacks here, installed in the background."""
+        if self.setup is None:
+            raise TrainingError("Training can't be installed here.")
+        if self.running:
+            raise TrainingError("A wake word is being trained.")
+        why, needs = await self.blockers()
+        if not needs:
+            raise TrainingError(why or "Training is installed already.")
+        try:
+            self.setup.install(needs)
+        except SetupError as err:
+            raise TrainingError(str(err)) from err
+
+    async def uninstall(self) -> None:
+        """What was installed for training, taken away (an install stopped)."""
+        if self.running:
+            raise TrainingError("A wake word is being trained.")
+        if self.setup is not None:
+            await self.setup.remove()
 
     def room_negatives(self) -> list[dict[str, Any]]:
         """The home's audio, as the trainer's negatives (``hours`` each)."""
@@ -396,8 +456,10 @@ class WakeTraining:
             return ""
 
     async def status(self) -> dict[str, Any]:
+        why, needs = (None, []) if self.running else await self.blockers()
         return {
-            "unavailable": None if self.running else await self.unavailable(),
+            "unavailable": why,
+            "setup": self.setup.status(needs) if self.setup is not None else None,
             "job": self.job.to_json() if self.job is not None else None,
             "clips": self.positive_clips,
             "steps": sum(self.training_steps),
@@ -449,6 +511,8 @@ class WakeTraining:
 
     async def stop(self) -> None:
         """The app is stopping: so is training (it says interrupted next time)."""
+        if self.setup is not None:
+            await self.setup.stop()
         if self.running:
             assert self._task is not None
             self._task.cancel()

@@ -5,13 +5,14 @@
 #
 # What is compiled -- adapt-ctc's Viterbi, the wake verifier's decoder,
 # FluidSynth -- and the Python packages are built in the first stage, so the
-# image has no compiler. TRAINING=false leaves out wake word training
-# (TensorFlow, 2 GB).
+# image has no compiler. Wake word training (TensorFlow, 2 GB) isn't in it:
+# the Wake words page installs it when asked, with uv, into a cache in /data
+# (voice_incubator/wake_training_setup.py).
 ARG BUILD_FROM=debian:trixie-slim
 
 FROM ${BUILD_FROM} AS builder
 ARG BUILD_ARCH
-ARG TRAINING=true
+ARG UV_VERSION=0.13.7
 
 SHELL ["/bin/bash", "-o", "pipefail", "-c"]
 
@@ -55,11 +56,10 @@ RUN \
     && cmake --install /tmp/fluidsynth/build \
     && rm -rf /tmp/fluidsynth /tmp/fluidsynth.tar.gz /usr/local/bin/fluidsynth /usr/local/include /usr/local/share
 
-COPY requirements.txt requirements-training.txt ./
+COPY requirements.txt ./
 RUN \
     pip3 install --no-cache-dir -U --ignore-installed setuptools wheel \
-    && pip3 install --no-cache-dir -r requirements.txt \
-    && if [ "${TRAINING}" = "true" ]; then pip3 install --no-cache-dir -r requirements-training.txt; fi
+    && pip3 install --no-cache-dir -r requirements.txt "uv==${UV_VERSION}"
 
 # What the image carries besides its code (voice_incubator/downloads.py, IMAGE):
 # the speaker, wake word and Kaldi models, and Kaldi's tools for this

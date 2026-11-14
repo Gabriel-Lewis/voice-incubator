@@ -22,6 +22,11 @@ MB, from rhasspy/voice-incubator-models and OpenVoiceOS/redimnet-b2-vox2-onnx; a
 for Kaldi mode, the model's G2P and phonetisaurus (43 MB, of Speech-to-Phrase's
 archives in rhasspy/rhasspy-speech).
 
+The wake word training kit (``kit``, scripts/publish_wake_training_kit.py)
+is downloaded only when the Wake words page installs training
+(voice_incubator/wake_training_setup.py), into models/wake-training (linked
+to the data folder, like the models above).
+
     python3 -m voice_incubator.downloads fetch models          # in the image's build, or a working copy's
     python3 -m voice_incubator.downloads link /data/models    # in the image's build
 """
@@ -32,6 +37,7 @@ import argparse
 import asyncio
 import hashlib
 import html
+import json
 import logging
 import platform
 import tarfile
@@ -286,12 +292,20 @@ def fetch(models: Path, arch: str) -> None:
                 if file.member:
                     _extract(path, file.member, target)
                 elif file.unpack:
-                    with tarfile.open(path) as archive:
-                        archive.extractall(work, filter="tar")
-                    (Path(work) / file.unpack).replace(target)
+                    _unpack(path, file.unpack, target, "tar")
                 else:
                     path.replace(target)
             print(f"{target} ({(target.stat().st_size if file.member else file.size) / 1e6:.1f} MB)")
+
+
+def _unpack(archive_path: Path, unpack: str, target: Path, extraction: str = "data") -> None:
+    """What an archive unpacks to (``unpack``, its path in the archive), as
+    ``target``: whole, or not at all."""
+    target.parent.mkdir(parents=True, exist_ok=True)
+    with tempfile.TemporaryDirectory(dir=target.parent, prefix=f".{target.name}.") as work:
+        with tarfile.open(archive_path) as archive:
+            archive.extractall(work, filter=extraction)
+        (Path(work) / unpack).replace(target)
 
 
 def _extract(archive_path: Path, member: str, target: Path) -> None:
@@ -389,7 +403,10 @@ class Downloader:
             if digest.hexdigest() != file.digest:
                 spelled = {"sha256": "SHA-256", "md5": "MD5"}.get(file.algorithm, file.algorithm)
                 raise ValueError(f"not as published (its {spelled} differs)")
-            partial.replace(path)
+            if file.unpack:
+                await asyncio.to_thread(_unpack, partial, file.unpack, path)
+            else:
+                partial.replace(path)
         finally:
             self.done -= got
             partial.unlink(missing_ok=True)
@@ -444,11 +461,55 @@ VOICES = "piper"
 """Where Piper's voices go under models/, each downloaded when it is first
 used (voice_incubator/piper_voices.py)."""
 
+KIT_FOLDER = "wake-training"
+"""Where the wake word training kit goes under models/."""
+KIT_MANIFEST = Path(__file__).with_name("wake_training_kit.json")
+"""The kit as published (scripts/publish_wake_training_kit.py): its files,
+where, and each one's SHA-256."""
+KIT_MARKER = ".downloaded"
+"""In the kit's folder: it is downloaded, so the app may finish or remove it
+(a kit made by hand never is)."""
+
+
+def _kit_spec() -> dict:
+    try:
+        return json.loads(KIT_MANIFEST.read_text("utf-8"))
+    except (OSError, ValueError):
+        return {}
+
+
+def kit_unpacked() -> int:
+    """Bytes the published kit takes, unpacked."""
+    return int(_kit_spec().get("unpacked") or 0)
+
+
+def kit() -> Model | None:
+    """The wake word training kit's files, kit.yaml last (a kit is one once
+    it is there); None: it isn't published."""
+    spec = _kit_spec()
+    if not spec.get("revision"):
+        return None
+    base = f"https://huggingface.co/{spec['repo']}/resolve/{spec['revision']}/{spec['path']}"
+    return Model(KIT_FOLDER, tuple(
+        File(f["name"], f"{base}/{f['name']}", f["sha256"], f["size"], unpack=f.get("unpack"))
+        for f in spec["files"]
+    ))
+
+
+def kit_missing(models: Path) -> list[tuple[Path, File]]:
+    """What of the published kit isn't under ``models`` yet, each where it goes."""
+    model = kit()
+    if model is None:
+        return []
+    folder = (models / model.folder).resolve()
+    return [(folder / (f.unpack or f.name), f) for f in model.files if not (folder / (f.unpack or f.name)).exists()]
+
 
 def link(data: Path, models: Path = ROOT / "models") -> None:
     """Each downloaded model's folder under ``models`` -- and Piper's voices'
-    -- a link to its place under ``data``, where the app downloads it."""
-    for folder in (*(model.folder for model in MODELS), VOICES):
+    and the training kit's -- a link to its place under ``data``, where the
+    app downloads it."""
+    for folder in (*(model.folder for model in MODELS), VOICES, KIT_FOLDER):
         place = models / folder
         place.parent.mkdir(parents=True, exist_ok=True)
         if place.is_symlink() or place.exists():

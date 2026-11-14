@@ -171,6 +171,9 @@ async def start_web(app: "VoiceIncubatorApp") -> web.AppRunner:
             web.post("/api/wake_training", api.train_wake_word),
             web.delete("/api/wake_training", api.cancel_wake_training),
             web.get("/api/wake_training/log", api.wake_training_log),
+            web.post("/api/wake_training/setup", api.install_wake_training),
+            web.delete("/api/wake_training/setup", api.uninstall_wake_training),
+            web.get("/api/wake_training/setup/log", api.wake_training_setup_log),
             web.get("/api/voices", api.voices),
             web.get("/api/piper/voices", api.piper_voices),
             web.post("/api/piper/try", api.try_piper),
@@ -1976,6 +1979,27 @@ class Api:
 
     async def wake_training_log(self, request: web.Request) -> web.Response:
         return web.Response(text=self.app.wake_training.log(), content_type="text/plain")
+
+    async def install_wake_training(self, request: web.Request) -> web.Response:
+        """Install what training a wake word lacks here (TensorFlow, the kit):
+        it runs on, the page follows it (GET /api/wake_training, ``setup``)."""
+        try:
+            await self.app.wake_training.install()
+        except TrainingError as err:
+            raise ConfigError(str(err)) from err
+        return web.json_response({"ok": True})
+
+    async def uninstall_wake_training(self, request: web.Request) -> web.Response:
+        """What was installed for training, removed (an install stopped)."""
+        try:
+            await self.app.wake_training.uninstall()
+        except TrainingError as err:
+            raise ConfigError(str(err)) from err
+        return web.json_response({"ok": True})
+
+    async def wake_training_setup_log(self, request: web.Request) -> web.Response:
+        setup = self.app.wake_training.setup
+        return web.Response(text=setup.log() if setup is not None else "", content_type="text/plain")
 
     # ---------------------------------------------------------------- calls
 
