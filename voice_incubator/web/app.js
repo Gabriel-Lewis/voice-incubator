@@ -750,6 +750,7 @@ function agentPanel() {
     note.textContent = data.error ? `Home Assistant's agents could not be listed: ${data.error}` : "";
   }).catch(() => {});
   const keep = h("input", { type: "number", min: 0, max: 1440, step: 0.5, value: status.keep_minutes ?? 5, style: "width:80px" });
+  const tellSpeaker = h("input", { type: "checkbox", checked: !!status.speaker });
   const sats = satelliteLabels();
   const kept = Object.entries(status.conversations || {});
   // Its own voice: Piper's (one of its voices, else the area's or the home's)
@@ -795,7 +796,7 @@ function agentPanel() {
   });
   async function save() {
     try {
-      await api("PUT", "settings", { agent: agent.value || null, agent_keep_minutes: Number(keep.value), agent_voice: voiceValue() });
+      await api("PUT", "settings", { agent: agent.value || null, agent_keep_minutes: Number(keep.value), agent_voice: voiceValue(), agent_speaker: tellSpeaker.checked });
       toast("Saved"); await refreshStatus(); pageSettings();
     } catch (err) { toast(err.message); }
   }
@@ -805,6 +806,8 @@ function agentPanel() {
       h("div", { class: "field" }, agent, note),
       field("Keep for", h("label", {}, keep, "minutes"), "After its last answer in an area, the next sentence from a satellite there continues the conversation (“how tall is it?”); a satellite in no area has its own. 0: every sentence starts a new one.")),
     voiceRow,
+    h("div", { class: "row" }, field("Speaker", h("label", {}, tellSpeaker, "Pass speaker name to LLM agent"),
+      "Sends “[Speaker:Anna] what's on my calendar” when the speaker is known. Not sent to Home Assistant's own agent.")),
     h("div", { class: "row" }, h("span", { class: "grow" }), h("button", { class: "primary", onclick: save }, "Save")),
     kept.length ? h("p", { class: "small" }, "Kept: ", kept.map(([key, seconds]) => `${sats[key] || areaNameOf(key) || "typed with no satellite"} (${Math.round(seconds)} s more)`).join(", ")) : null);
 }

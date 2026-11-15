@@ -1193,11 +1193,14 @@ class VoiceIncubatorApp:
             minutes = float(settings.get("agent_keep_minutes", KEEP_SECONDS / 60))
         except (TypeError, ValueError):
             minutes = KEEP_SECONDS / 60
-        return {"agent": settings.get("agent") or None, "keep_minutes": minutes, "voice": settings.get("agent_voice") or {}}
+        return {
+            "agent": settings.get("agent") or None, "keep_minutes": minutes, "voice": settings.get("agent_voice") or {},
+            "speaker": bool(settings.get("agent_speaker")),
+        }
 
     def configure_agent(self) -> None:
         wanted = self.agent_settings()
-        self.agent.configure(wanted["agent"], wanted["keep_minutes"] * 60)
+        self.agent.configure(wanted["agent"], wanted["keep_minutes"] * 60, wanted["speaker"])
         self.context.keep_seconds = wanted["keep_minutes"] * 60  # as long as its conversation
 
     def agent_status(self) -> dict[str, Any]:
@@ -3282,7 +3285,7 @@ class VoiceIncubatorApp:
             return self.language.speech.SORRY, "not recognized", f"{words!r}: no agent to answer"
         if not dry_run:
             await cue("asking")
-        said = await self._ask_agent(decision, satellite, dry_run, record)
+        said = await self._ask_agent(decision, satellite, dry_run, record, asked.who.name)
         if not said:
             return self.language.speech.SORRY, "not recognized", f"{words!r}: {self.agent.agent_id} understood nothing"
         return said, "answered", f"{words!r}: {self.agent.agent_id}'s answer"
@@ -3322,7 +3325,7 @@ class VoiceIncubatorApp:
         ):
             if cue is not None and not dry_run:
                 await cue("asking")
-            said = await self._ask_agent(decision, satellite, dry_run, record)
+            said = await self._ask_agent(decision, satellite, dry_run, record, speaker.get("name"))
             if said:
                 return said, "answered", f"{decision.transcript!r}: {self.agent.agent_id}'s answer"
         if decision.command is None and decision.answer is not None and decision.answer.get("text"):
@@ -3459,7 +3462,8 @@ class VoiceIncubatorApp:
         return said
 
     async def _ask_agent(
-        self, decision: Decision, satellite: Satellite, dry_run: bool, record: CallRecord | None
+        self, decision: Decision, satellite: Satellite, dry_run: bool, record: CallRecord | None,
+        speaker: str | None = None,
     ) -> str | Streamed | None:
         """What the conversation agent answers, in its conversation for the
         satellite's area: an LLM's said as it comes (Streamed), from its
@@ -3472,6 +3476,7 @@ class VoiceIncubatorApp:
         streamed = Streamed()
         asking = asyncio.ensure_future(self.agent.ask(
             conversation_key(satellite), decision.transcript, satellite.device_id, self.language.code, on_text=streamed.put,
+            speaker=speaker,
         ))
         first = asyncio.ensure_future(streamed.started.wait())
         try:

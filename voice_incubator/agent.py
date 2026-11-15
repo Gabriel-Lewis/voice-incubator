@@ -110,6 +110,8 @@ class Reply:
     """When its first piece came."""
     error: str | None = None
     """Home Assistant could not be asked, or refused."""
+    speaker: str | None = None
+    """Who it was told was speaking; None when it wasn't."""
     data: dict[str, Any] = field(default_factory=dict)
 
     def to_json(self) -> dict[str, Any]:
@@ -126,6 +128,7 @@ class Reply:
             "streamed": self.streamed,
             "first_seconds": round(self.first_seconds, 3) if self.first_seconds is not None else None,
             "error": self.error,
+            "speaker": self.speaker,
         }
 
 
@@ -178,11 +181,16 @@ class Agent:
     """A Home Assistant conversation agent, and each satellite's conversation
     with it."""
 
-    def __init__(self, hass: HomeAssistant, agent_id: str | None = None, keep_seconds: float = KEEP_SECONDS) -> None:
+    def __init__(
+        self, hass: HomeAssistant, agent_id: str | None = None, keep_seconds: float = KEEP_SECONDS,
+        tell_speaker: bool = False,
+    ) -> None:
         self.hass = hass
         self.agent_id = agent_id
         """None: no agent; nothing is sent."""
         self.keep_seconds = keep_seconds
+        self.tell_speaker = tell_speaker
+        """Whether an LLM agent is told who is speaking (``agent_speaker``)."""
         self.conversations: dict[str, Conversation] = {}
         """By conversation_key."""
         self._extra_fields = True
@@ -197,11 +205,20 @@ class Agent:
     async def _reconnected(self) -> None:
         self._streams = True
 
-    def configure(self, agent_id: str | None, keep_seconds: float) -> None:
+    def configure(self, agent_id: str | None, keep_seconds: float, tell_speaker: bool = False) -> None:
         if agent_id != self.agent_id:
             self.conversations.clear()  # another agent knows none of them
         self.agent_id = agent_id
         self.keep_seconds = keep_seconds
+        self.tell_speaker = tell_speaker
+
+    def told(self, text: str, speaker: str | None) -> str:
+        """``text`` as the agent is sent it: after who said it
+        (``[Speaker:Anna] ...``), when it is told and they are known. Home
+        Assistant's own agent never is: its sentences would no longer match."""
+        if not (self.tell_speaker and speaker and self.agent_id != HOME_ASSISTANT_AGENT):
+            return text
+        return f"[Speaker:{speaker}] {text}"
 
     def conversation(self, key: str, now: float | None = None) -> Conversation | None:
         """The conversation ``key`` (conversation_key), while it is kept."""
@@ -237,15 +254,18 @@ class Agent:
 
     async def ask(
         self, key: str, text: str, device_id: str | None = None, language: str | None = None,
-        on_text: Callable[[str], None] | None = None,
+        on_text: Callable[[str], None] | None = None, speaker: str | None = None,
     ) -> Reply:
         """``text`` said in conversation ``key`` (conversation_key), for the
         agent. An LLM agent's answer goes to ``on_text`` a piece at a time,
-        as it is made."""
+        as it is made. ``speaker``: who said it, when known (``told``)."""
         assert self.agent_id is not None
         reply = Reply(self.agent_id)
         kept = self.conversation(key)
-        message: dict[str, Any] = {"type": "conversation/process", "text": text, "agent_id": self.agent_id}
+        sent = self.told(text, speaker)
+        if sent != text:
+            reply.speaker = speaker
+        message: dict[str, Any] = {"type": "conversation/process", "text": sent, "agent_id": self.agent_id}
         if kept is not None:
             message["conversation_id"] = kept.id
             reply.continued = True

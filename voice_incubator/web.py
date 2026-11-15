@@ -1619,7 +1619,13 @@ class Api:
                     self.app.fetch_area_voice(piper)
             else:
                 settings.pop("agent_voice", None)
-        if "agent" in body or "agent_keep_minutes" in body:
+        if "agent_speaker" in body:
+            # Tell an LLM agent who is speaking: [Speaker:Anna] before the sentence.
+            if body["agent_speaker"]:
+                settings["agent_speaker"] = True
+            else:
+                settings.pop("agent_speaker", None)
+        if "agent" in body or "agent_keep_minutes" in body or "agent_speaker" in body:
             self.app.configure_agent()
         if "recognizer" in body:
             choice = str(body["recognizer"] or "parakeet")
