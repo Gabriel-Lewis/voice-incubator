@@ -1,5 +1,35 @@
 # Changelog
 
+## 0.3.0
+
+- **The app's language is picked on its Configuration tab, and it has no
+  default.** Updated from 0.2, the app won't start until one is picked.
+  German, Spanish, French, Italian, Dutch, Polish, Russian and Ukrainian
+  now have English's commands, versions, slots, lists and actions, alarms
+  and reminders on the calendar, and two commands said together. The
+  language's speech model is downloaded at the first start. Piper's voices
+  are the language's, and GLiNER is English only.
+- **Wake word training is installed from the Wake words page.** TensorFlow
+  is no longer in the image (3.0 GB down to 1.1 GB on amd64), and the
+  training kit no longer has to be copied in by hand. Install downloads
+  about 1.2 GB on amd64 and 900 MB on aarch64, and takes about 4 GB in the
+  data folder. Remove frees it again. Updates keep it, and backups leave it
+  out.
+- **A training voice that won't download fails the training.** It used to
+  wait without saying anything, trying again every 30 s; now the training
+  stops after three tries and says why.
+- **Wake words are trained with the new libritts_r voice.** It has 904
+  speakers where the old one had 2306, with other ids. A saved speaker it
+  no longer has speaks with the voice's default.
+- **A command said right after the wake word isn't missed.** Silero now
+  starts listening on the quiet before the wake word. Started on "okay",
+  it scored a plainly said command 0.36, under the 0.5 that starts it,
+  and the call ended "no speech was heard".
+- **Adding from the library is quick.** The library's sentences are
+  embedded in the background after the first build (100 s once on an HA
+  Green), so adding 12 commands no longer takes 23 s. The Add buttons say
+  "Adding…" until the commands are recognized.
+
 ## 0.2.1
 
 - **Wake words are verified on the AEC capture.** The VPE's AGC capture
