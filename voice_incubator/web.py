@@ -1456,6 +1456,8 @@ class Api:
         settings = self.app.store.settings
         if "keep_audio" in body:
             settings["keep_audio"] = bool(body["keep_audio"])
+        if "keep_wake_audio" in body:
+            settings["keep_wake_audio"] = bool(body["keep_wake_audio"])
         if "home" in body:
             # What commands on the home's own use without an implied target.
             home = dict(settings.get("home") or {})

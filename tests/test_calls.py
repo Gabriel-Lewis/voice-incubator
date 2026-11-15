@@ -4,7 +4,10 @@ from __future__ import annotations
 
 import json
 
+import pytest
+
 from voice_incubator.calls import CallLog
+from voice_incubator.protocol import BYTE_RATE
 
 
 def test_clearing_sessions(tmp_path):
@@ -29,3 +32,25 @@ def test_clearing_sessions(tmp_path):
     assert [p.name for p in tmp_path.iterdir()] == []
     log.finish(going, "done", "", {"call": b"\0\0" * 160})
     assert (tmp_path / going.id / "trace.json").is_file()
+
+
+def finished(log, outcome, *stages, seconds=4.0, detection=1.5):
+    record = log.begin("call", {"id": "kitchen-vpe"})
+    record.marks["detection"] = detection
+    for stage in stages:
+        record.stage(stage["stage"], **{k: v for k, v in stage.items() if k != "stage"})
+    log.finish(record, outcome, "", {"call": b"\1\0" * int(seconds * BYTE_RATE / 2), "command": b"\1\0" * 160})
+    return record
+
+
+def test_only_the_wake_word_is_kept(tmp_path):
+    log = CallLog(tmp_path, {"keep_audio": False, "keep_wake_audio": True, "max_saved_calls": 100})
+    record = finished(log, "wake rejected", {"stage": "wake_kaldi", "accepted": False, "rejected_by": "confusable"})
+    assert record.kept and record.audio == {"wake": "wake.wav"}
+    path = log.audio_path(record.id, "wake")
+    # The pre-roll and a second after it: 2.5 s of 16 kHz, 16-bit, plus the header.
+    assert path.stat().st_size == pytest.approx(2.5 * BYTE_RATE, abs=100)
+
+    # Off: nothing saved, as before.
+    log = CallLog(tmp_path / "off", {"keep_audio": False, "max_saved_calls": 100})
+    assert not finished(log, "done").kept
