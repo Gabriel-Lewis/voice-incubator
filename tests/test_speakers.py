@@ -27,7 +27,7 @@ ROOT = Path(__file__).resolve().parent.parent
 VOICE = ROOT / "models/piper/en_US-libritts_r-medium.onnx"
 MAC = "aabbccddeeff"
 RATE = 16000
-ALICE, OTHER = 101, 2138
+ALICE, OTHER = 101, 479
 """Two of the voice's speakers, about as alike as two people picked at random (0.25)."""
 COMMAND = "Turn on the lights in the kitchen."
 TALK = ["Can you pass me the salt, please?", "I think we need more bread as well.",
