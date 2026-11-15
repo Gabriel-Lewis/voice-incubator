@@ -14,6 +14,7 @@ import numpy as np
 import pytest
 
 from voice_incubator import wake_positives, wake_training
+from voice_incubator.downloads import DownloadError
 from voice_incubator.mixednet import load as load_wake_model
 from voice_incubator.wake_training import Job, Kit, TrainingError, WakeTraining
 
@@ -242,6 +243,26 @@ def test_a_failed_or_cancelled_training(tmp_path):
         await asyncio.wait_for(slow.cancel(), 30)
         assert job.state == "cancelled" and not slow.running
         assert not any(p.is_dir() for p in (tmp_path / "slow/data/wake_training").iterdir())
+
+    asyncio.run(run())
+
+
+def test_a_training_voice_that_wont_download(tmp_path):
+    """The voice is downloaded when training first needs it; one that won't
+    download fails the training, saying why, rather than it waiting unseen."""
+    said = "Couldn't download voice.onnx: not as published (its MD5 differs)"
+
+    async def run() -> None:
+        async def fetch_voice() -> None:
+            raise DownloadError(said)
+
+        training, installed = make_training(tmp_path, fetch_voice=fetch_voice)
+        training.voice = tmp_path / "voice.onnx"  # not here yet
+        assert (await training.status())["unavailable"] is None
+        job = await training.start("hey tester")
+        await asyncio.wait_for(training._task, 10)  # pylint: disable=protected-access
+        assert job.state == "failed" and job.error == said and not installed
+        assert WakeTraining(tmp_path / "data/wake_training", None, [], None, "en").job.error == said
 
     asyncio.run(run())
 

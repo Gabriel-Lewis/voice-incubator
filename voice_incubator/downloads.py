@@ -358,31 +358,45 @@ def missing(models: Path, language: str = "en", gliner: bool = True) -> list[tup
     return out
 
 
+class DownloadError(OSError):
+    """A download that gave up (Downloader's ``tries``), saying why."""
+
+
 class Downloader:
     """Downloads what is missing, trying again until it has it all, and says
-    how far it got: ``done`` and ``total`` bytes, and the last ``error``."""
+    how far it got: ``done`` and ``total`` bytes, and the last ``error``.
+    Given ``tries``, a file that fails that many times running gives up
+    (DownloadError): for what someone is waiting on, as a training is."""
 
-    def __init__(self, todo: list[tuple[Path, File]]) -> None:
+    def __init__(self, todo: list[tuple[Path, File]], tries: int | None = None) -> None:
         self.todo = todo
         self.total = sum(file.size for _, file in todo)
         self.done = 0
         self.error: str | None = None
+        self.tries = tries
 
     async def run(self) -> None:
         _LOGGER.info("Downloading %d model file(s), %.0f MB", len(self.todo), self.total / 1e6)
+        failed = 0
         async with aiohttp.ClientSession(timeout=aiohttp.ClientTimeout(sock_read=60)) as http:
             while self.todo:
                 path, file = self.todo[0]
                 try:
                     await self._fetch(http, path, file)
                 except (aiohttp.ClientError, OSError, TimeoutError, ValueError) as err:
-                    self.error = f"{file.url.rsplit('/', 1)[-1]}: {err}"
+                    name = file.url.rsplit("/", 1)[-1]
+                    self.error = f"{name}: {err}"
+                    failed += 1
+                    if self.tries is not None and failed >= self.tries:
+                        _LOGGER.warning("Couldn't download %s (%s); giving up", file.url, err)
+                        raise DownloadError(f"Couldn't download {name}: {err}") from err
                     _LOGGER.warning("Couldn't download %s (%s); trying again in %.0f s", file.url, err, RETRY_SECONDS)
                     await asyncio.sleep(RETRY_SECONDS)
                     continue
                 self.todo.pop(0)
                 self.done += file.size
                 self.error = None
+                failed = 0
         _LOGGER.info("Models downloaded")
 
     async def _fetch(self, http: aiohttp.ClientSession, path: Path, file: File) -> None:

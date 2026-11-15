@@ -130,6 +130,40 @@ async def _downloaded(tmp_path: Path, monkeypatch) -> None:
         await runner.cleanup()
 
 
+def test_given_tries_it_gives_up_saying_why(tmp_path, monkeypatch):
+    """As a training's voice is downloaded: a file not as published, tried
+    that many times, gives up -- what came before it kept, nothing half."""
+    monkeypatch.setattr(downloads, "RETRY_SECONDS", 0.01)
+    asked: list[str] = []
+
+    async def run() -> None:
+        async def serve(request: web.Request) -> web.Response:
+            asked.append(request.match_info["name"])
+            return web.Response(body=b"the new model")
+
+        application = web.Application()
+        application.router.add_get("/{name:.*}", serve)
+        runner = web.AppRunner(application)
+        await runner.setup()
+        site = web.TCPSite(runner, "127.0.0.1", 0)
+        await site.start()
+        port = site._server.sockets[0].getsockname()[1]  # pylint: disable=protected-access
+        try:
+            good = File("voice.onnx.json", f"http://127.0.0.1:{port}/voice.onnx.json",
+                        hashlib.md5(b"the new model").hexdigest(), 13, "md5")
+            stale = File("voice.onnx", f"http://127.0.0.1:{port}/voice.onnx", hashlib.md5(b"the old model").hexdigest(), 13, "md5")
+            downloader = Downloader([(tmp_path / "voice.onnx.json", good), (tmp_path / "voice.onnx", stale)], tries=3)
+            with pytest.raises(downloads.DownloadError, match=r"^Couldn't download voice.onnx: not as published \(its MD5 differs\)$"):
+                await asyncio.wait_for(downloader.run(), 5)
+            assert asked == ["voice.onnx.json"] + ["voice.onnx"] * 3
+            assert sorted(p.name for p in tmp_path.iterdir()) == ["voice.onnx.json"]
+            assert downloader.done == 13 and downloader.error == "voice.onnx: not as published (its MD5 differs)"
+        finally:
+            await runner.cleanup()
+
+    asyncio.run(run())
+
+
 def test_the_app_runs_on_what_it_downloads(tmp_path):
     """The CTC model's folder with its tokens only: the transducer, with the
     CTC model's head beside it, is both (adapt_ctc.hybrid)."""

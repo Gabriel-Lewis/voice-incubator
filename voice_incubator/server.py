@@ -4894,11 +4894,13 @@ class VoiceIncubatorApp:
 
     async def _fetch_training_voice(self) -> None:
         """The voice wake words are trained with, downloaded when training
-        first needs it."""
+        first needs it. A file that fails three times fails the training,
+        saying why (downloads.DownloadError): waiting rarely mends it, and
+        the training would wait unseen."""
         voice = piper_catalog().get((self.language.wake_voice or "").removesuffix(".onnx"))
         todo = voice.missing(self.piper_dir) if voice is not None else []
         if todo:
-            await downloads.Downloader(todo).run()
+            await downloads.Downloader(todo, tries=3).run()
 
     async def use_voice(self, voice: Voice) -> None:
         """Replies in ``voice`` from now on, once it is here."""
