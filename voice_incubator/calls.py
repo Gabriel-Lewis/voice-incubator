@@ -97,6 +97,7 @@ class CallRecord:
             "debug_session": self.debug_session,
             "dry_run": self.dry_run,
             "label": self.label,
+            "suggested": self.suggested_json(),
         }
         if full:
             out["stages"] = self.stages
@@ -104,6 +105,13 @@ class CallRecord:
         else:
             out.update(self._glance())
         return out
+
+    def suggested(self) -> labels.Suggestion | None:
+        return labels.suggest(self.kind, self.outcome, self.stages)
+
+    def suggested_json(self) -> dict[str, Any] | None:
+        suggestion = self.suggested()
+        return None if suggestion is None else suggestion.to_json()
 
     def _glance(self) -> dict[str, Any]:
         """For the list: the wake word and what it came in with, what was

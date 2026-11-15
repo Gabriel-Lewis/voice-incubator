@@ -4273,8 +4273,13 @@ function enrollPanel(data, preset) {
 
 // Review labels (voice_incubator/labels.py): was it really the wake word?
 const LABEL_NAMES = { good: "Good wake", false_wake: "False wake", discard: "Discard" };
+const LABEL_CLASS = { good: "ok", false_wake: "bad", discard: "" };
 
-// The label a session has, and buttons to set it.
+function needsReview(c) {
+  return !c.label && c.suggested && !c.suggested.sure;
+}
+
+// The label a session has, or the one suggested for it, and buttons to set it.
 function labelControls(c, changed) {
   const set = async (e, label) => {
     e.preventDefault();
@@ -4285,7 +4290,10 @@ function labelControls(c, changed) {
     changed();
   };
   const current = c.label && c.label.label;
+  const suggestion = !current && c.suggested;
   return h("span", { class: "label-controls small", onclick: (e) => { e.preventDefault(); e.stopPropagation(); } },
+    suggestion ? h("span", { class: `badge ${suggestion.sure ? LABEL_CLASS[suggestion.label] : "warn"}`, title: suggestion.reason },
+      `${suggestion.sure ? "" : "maybe "}${LABEL_NAMES[suggestion.label].toLowerCase()}?`) : null,
     ...Object.keys(LABEL_NAMES).map((label) => h("button", {
       class: `small ${current === label ? "primary" : ""}`,
       title: current === label ? "Remove the label" : `Label it: ${LABEL_NAMES[label].toLowerCase()}`,
@@ -4295,6 +4303,7 @@ function labelControls(c, changed) {
 
 async function pageSessions(query) {
   const satellite = new URLSearchParams(query || "").get("satellite");
+  let reviewing = new URLSearchParams(query || "").get("review") === "1";
   await loadSatellites();
   const settings = await api("GET", "settings");
   const list = h("div", { class: "list" });
@@ -4320,11 +4329,14 @@ async function pageSessions(query) {
 
   async function refresh() {
     const data = await api("GET", `calls${satellite ? `?satellite=${satellite}` : ""}`);
-    fill(list, ...(data.calls.length ? data.calls.map(row) : [h("p", { class: "muted" }, "No sessions yet.")]));
+    const calls = reviewing ? data.calls.filter((c) => c.kept && needsReview(c)) : data.calls;
+    const empty = reviewing ? "Nothing to review." : "No sessions yet.";
+    fill(list, ...(calls.length ? calls.map(row) : [h("p", { class: "muted" }, empty)]));
   }
 
   const keep = h("input", { type: "checkbox", checked: settings.keep_audio, onchange: async (e) => { await api("PUT", "settings", { keep_audio: e.target.checked }); refreshStatus(); toast(e.target.checked ? "Keeping audio of every session" : "Not keeping audio"); } });
   const keepWake = h("input", { type: "checkbox", checked: settings.keep_wake_audio, onchange: async (e) => { await api("PUT", "settings", { keep_wake_audio: e.target.checked }); toast(e.target.checked ? "Keeping every wake word" : "Not keeping wake words"); } });
+  const review = h("input", { type: "checkbox", checked: reviewing, onchange: async (e) => { reviewing = e.target.checked; await refresh(); } });
   const max = h("input", { type: "number", min: 1, value: settings.max_saved_calls, style: "width:80px", onchange: async (e) => { await api("PUT", "settings", { max_saved_calls: Number(e.target.value) }); toast("Saved"); } });
   const clear = h("button", { class: "danger", onclick: async () => {
     const whose = satellite ? `the sessions on ${sats[satellite] || satellite}` : "all sessions";
@@ -4339,6 +4351,7 @@ async function pageSessions(query) {
       satellite ? h("a", { href: "#/sessions" }, "All satellites") : null,
       h("label", { class: "small" }, keep, "Keep every session", hint("Keeps the audio and full trace of every session — everything from the wake word to the answer. Without this, the last sessions' traces are kept in memory only. Debugging one satellite (on its page, under Test it) keeps its audio.")),
       h("label", { class: "small" }, keepWake, "Keep wake words", hint("Keeps only the wake word of every session — 2.5 seconds, from just before it to a second after — to hear what woke it and label it below. Without this, a false wake can only be heard again with Keep every session.")),
+      h("label", { class: "small" }, review, "Needs review"),
       h("label", { class: "small" }, "At most", max),
       clear),
     session && session.debug ? h("div", { class: "notice warn" }, `Debugging ${session.name}${session.debug.dry_run ? " (dry run: nothing is executed)" : ""}. New sessions appear here as they happen.`) : null,
