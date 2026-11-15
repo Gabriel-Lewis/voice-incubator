@@ -26,6 +26,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
+from . import labels
 from .protocol import BYTES_PER_SAMPLE, BYTE_RATE, SAMPLE_RATE
 
 _LOGGER = logging.getLogger(__name__)
@@ -70,6 +71,9 @@ class CallRecord:
     """Moments in the call audio, in seconds: detection, wake word, cut..."""
 
     kept: bool = False
+    label: dict[str, Any] | None = None
+    """A review label (voice_incubator/labels.py): ``label``, ``by``, ``at``."""
+
     debug_session: bool = False
     dry_run: bool = False
     finished: float | None = None
@@ -92,6 +96,7 @@ class CallRecord:
             "kept": self.kept,
             "debug_session": self.debug_session,
             "dry_run": self.dry_run,
+            "label": self.label,
         }
         if full:
             out["stages"] = self.stages
@@ -136,7 +141,7 @@ class CallRecord:
         record = cls(data["id"], data.get("kind", "call"), data.get("satellite") or {})
         for key in (
             "started", "stages", "outcome", "summary", "audio", "marks", "kept",
-            "debug_session", "dry_run", "finished",
+            "label", "debug_session", "dry_run", "finished",
         ):
             if key in data:
                 setattr(record, key, data[key])
@@ -235,6 +240,21 @@ class CallLog:
         (self.calls_dir / record.id / "trace.json").write_text(
             json.dumps(record.to_json(), indent=1, default=str), "utf-8"
         )
+
+    def set_label(self, call_id: str, label: str | None, by: str = "user") -> CallRecord | None:
+        """A call labelled (or unlabelled, with None) on the Sessions page;
+        saved with it when kept."""
+        record = self.get(call_id)
+        if record is None:
+            return None
+        record.label = None if label is None else labels.label_entry(label, by)
+        if (self.calls_dir / record.id).is_dir():
+            try:
+                self._write_trace(record)
+                record.kept = True
+            except OSError as err:
+                _LOGGER.error("Could not save call %s: %s", record.id, err)
+        return record
 
     def update(self, record: CallRecord) -> None:
         """A record changed after it finished (a transcript that came later):
