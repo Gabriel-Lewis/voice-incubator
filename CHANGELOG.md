@@ -624,9 +624,8 @@
   holiday": "No, Christmas is in 55 days.", "No, Halloween was yesterday."),
   and a holiday that is today is "It's today." -- not "It's 0 days." Under a
   week, "how many weeks until" says the days.
-- **The image is built from this folder alone.** wyoming-wake-kaldi (the
-  wake verifier, with its resident decoder's source), microWakeWord and
-  sentence-stream are vendored beside `voice_labs/`. The speaker model, the
+- **The image is built from this folder alone.** The wake verifier (with
+  its resident decoder's source), microWakeWord and sentence-stream sit beside `voice_labs/`. The speaker model, the
   microWakeWord models, and the verifier's Kaldi model and tools are fetched
   as the image is built, from pinned revisions of
   [rhasspy/voice-labs-models](https://huggingface.co/rhasspy/voice-labs-models)
