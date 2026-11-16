@@ -1,5 +1,18 @@
 # Changelog
 
+## 0.3.2
+
+- **Small boxes don't run out of memory building the home's sentences.**
+  Every new sentence was embedded in one run of the model, and a run's
+  memory grows with its size: 300 sentences added 713 MB, which got the
+  app killed (signal 9) on an HA Blue right after loading embeddings. They
+  now go 16 at a time.
+- **Enrolling a speaker doesn't fail on a cut-off audio frame.** With its
+  outgoing buffer nearly full, a device could end a frame halfway through
+  a sample. Enrollment then failed with "buffer size must be a multiple of
+  element size", and the rest of the audio was read a byte off. The half
+  sample is now joined to the next frame.
+
 ## 0.3.1
 
 - **Enrolling a speaker no longer crashes on older x86 CPUs.** Silero VAD
