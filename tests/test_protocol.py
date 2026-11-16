@@ -4,7 +4,7 @@ either name (discover.Discovery)."""
 from __future__ import annotations
 
 from voice_incubator.discover import Device, Discovery
-from voice_incubator.protocol import SERVICE_TYPES, Hello
+from voice_incubator.protocol import SERVICE_TYPES, Hello, Message
 
 NEW, OLD = SERVICE_TYPES
 
@@ -73,3 +73,27 @@ def test_a_new_address():
     # Another satellite is another satellite.
     _found(discovery, Device("ddeeff", "10.0.0.7", 6055, f"other.{OLD}", OLD))
     assert _events(discovery) == [("added", "10.0.0.7", OLD)]
+
+
+def test_audio_cut_mid_sample_is_realigned():
+    """Firmware could cut an audio frame mid-sample when its outgoing buffer
+    was nearly full; each stream carries the half sample to its next frame."""
+    import numpy as np
+
+    from voice_incubator.server import Session, _whole_samples
+
+    session = Session(key="k", host="h", port=1)
+    samples = np.arange(-500, 500, dtype="<i2")
+    stream = samples.tobytes()
+    cuts = [0, 7, 8, 301, 1001, 1999, len(stream)]
+    got = b"".join(
+        _whole_samples(session, Message.AUDIO_MONITOR_AEC, stream[a:b])
+        for a, b in zip(cuts, cuts[1:])
+    )
+    assert np.array_equal(np.frombuffer(got, dtype="<i2"), samples)
+    assert not session.split_samples
+
+    # Streams are realigned apart.
+    assert _whole_samples(session, Message.AUDIO_IN, b"\x01\x02\x03") == b"\x01\x02"
+    assert _whole_samples(session, Message.AUDIO_IN_AEC, b"\x04\x05") == b"\x04\x05"
+    assert _whole_samples(session, Message.AUDIO_IN, b"\x06") == b"\x03\x06"

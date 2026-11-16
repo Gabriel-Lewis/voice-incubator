@@ -134,6 +134,23 @@ FROM_HOME_ASSISTANT = "home_assistant"
 """Who wrote the words recognized (Decision.text_source): Home Assistant,
 which sent them to the conversation agent."""
 
+_AUDIO_STREAMS = frozenset(
+    {Message.AUDIO_IN, Message.AUDIO_IN_AEC, Message.AUDIO_MONITOR, Message.AUDIO_MONITOR_AEC}
+)
+
+
+def _whole_samples(session: "Session", msg_type: int, payload: bytes) -> bytes:
+    """The frame's audio in whole 16-bit samples, joined with the half sample
+    the stream's last frame ended on and holding back the one it ends on."""
+    carried = session.split_samples.pop(msg_type, b"")
+    if carried:
+        payload = carried + payload
+    if len(payload) % 2:
+        session.split_samples[msg_type] = payload[-1:]
+        payload = payload[:-1]
+    return payload
+
+
 _UNSAFE = re.compile(r"[^A-Za-z0-9._-]+")
 
 
@@ -580,6 +597,10 @@ class Session:
     speaker is enrolled from it."""
     monitoring_intercom: bool = False
     """And whether it was told that is the intercom."""
+    split_samples: dict[int, bytes] = field(default_factory=dict)
+    """Each audio stream's half of a sample its last frame ended on, by message
+    type: firmware before 2026-11-16 could cut a frame mid-sample when its
+    outgoing buffer was nearly full (the frame header is 3 bytes)."""
     intercom: "Intercom | None" = None
     """Joined to another satellite: each one's microphone on the other's speaker."""
     announcements: asyncio.Lock = field(default_factory=asyncio.Lock)
@@ -1912,6 +1933,11 @@ class VoiceIncubatorApp:
         )
 
     async def _handle(self, session: Session, msg_type: int, payload: bytes) -> None:
+        if msg_type in _AUDIO_STREAMS:
+            payload = _whole_samples(session, msg_type, payload)
+            if not payload:
+                return
+
         if msg_type == Message.AUDIO_IN:
             if session.listeners:
                 self._live_call_audio(session, payload)
@@ -1985,6 +2011,9 @@ class VoiceIncubatorApp:
                     info.get("error"),
                 )
         elif msg_type == Message.CALL_START:
+            # A new stream: whatever half sample the last call ended on is not its.
+            session.split_samples.pop(Message.AUDIO_IN, None)
+            session.split_samples.pop(Message.AUDIO_IN_AEC, None)
             self._on_call_start(session, info)
             session.live_call = True
             self._live(session, {"type": "call", "active": True, "wake_word": session.call.wake_word if session.call else None})
@@ -2110,6 +2139,10 @@ class VoiceIncubatorApp:
             for s in (self.enrollment, self.wake_recording)
         )
         if (wanted, intercom) != (session.monitoring, session.monitoring_intercom) and session.writer is not None:
+            if wanted and not session.monitoring:
+                # The device starts the monitored streams afresh.
+                session.split_samples.pop(Message.AUDIO_MONITOR, None)
+                session.split_samples.pop(Message.AUDIO_MONITOR_AEC, None)
             session.monitoring, session.monitoring_intercom = wanted, intercom and wanted
             await self._send_json(session, Message.MONITOR, {"active": wanted, "intercom": intercom and wanted})
 
