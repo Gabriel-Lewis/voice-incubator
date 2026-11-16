@@ -26,8 +26,9 @@ The command is recognized with adapt-ctc on Parakeet's CTC output:
    light to green", heard as "set and light to green").
 4. **Where it is available.** Matches are taken best first, skipping commands
    that are not heard here: another area's own, or the whole home's turned
-   off in this one. Of matches as good as each other, and of example
-   sentences a copy also has, this area's own goes first.
+   off in this one. Of matches as good as each other, a sentence trigger's
+   goes first, then this area's own; of example sentences a copy also has,
+   this area's own.
 5. **Free text** is re-read from the TDT transcript over the same stretch of
    audio, which spells far better than the CTC head ("lasagna", not "Lasaga").
 6. **When nothing matched**, the closest command is named: from the keyword
@@ -1428,16 +1429,22 @@ class Engine:
     ) -> None:
         """The first of ``recognition``'s matches this satellite may run:
         its command, behavior and slots into ``decision`` (or a refusal).
-        Of matches that cost the same, the area's own goes first.
+        Of matches that cost the same, a sentence trigger's goes first, then
+        the area's own.
 
         A device name not heard as said (``fit_devices``) gives way to a
         match as good as it: in "turn off utility room light", with only the
         Exercise Room's light called "Light", "light" is the lights' keyword,
         not that name. The refusal is said when no match as good runs."""
 
-        def mine_first(result) -> tuple[float, bool]:
+        def mine_first(result) -> tuple[float, bool, bool]:
+            # Home Assistant runs a sentence trigger before its intents: of
+            # matches as good, a trigger's goes before even the area's own
+            # ("turn on the lights", a trigger's sentence and the Kitchen's
+            # keywords).
             command = compiled.commands.get(command_of(result.intent))
-            return (result.cost, not (command is not None and satellite.picked(command)))
+            trigger = command is not None and command.behavior.trigger
+            return (result.cost, not trigger, not (command is not None and satellite.picked(command)))
 
         recognizer = self.recognizer
         margin = recognizer.config.settings.ambiguity_margin if recognizer is not None else 0.0
