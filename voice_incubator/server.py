@@ -565,6 +565,8 @@ class Session:
     host: str
     port: int
     writer: asyncio.StreamWriter | None = None
+    quiet_retries: bool = False
+    """Failed connects past the longest delay go to the debug log, until one works."""
     call: Call | None = None
     drained: asyncio.Event = field(default_factory=asyncio.Event)
     device_id: str = "unknown-device"
@@ -1769,14 +1771,25 @@ class VoiceIncubatorApp:
             while True:
                 change, device = await self._discovery.events.get()
                 if change == "added":
+                    known = self._found.get(device.key)
                     self._found[device.key] = device
                     if device.key in self.hass.catalog.disabled_satellites:
                         _LOGGER.info("Satellite appeared: %s; disabled in Home Assistant, so left alone", device)
+                    elif (
+                        known is not None
+                        and (known.host, known.port) == (device.host, device.port)
+                        and device.key in self._sessions
+                    ):
+                        _LOGGER.info("Satellite answering mDNS again: %s", device)
                     else:
                         self._start_session(device)
                 else:
-                    self._found.pop(device.key, None)
-                    self._stop_session(device)
+                    # Its mDNS record expired: missed refreshes on a weak
+                    # link do that to a satellite that's still there. The
+                    # session ends on its own connection, not this, and
+                    # keeps reconnecting to the last address it had --
+                    # kept in _found, for enabling it in Home Assistant.
+                    _LOGGER.info("Satellite stopped answering mDNS: %s; staying with its last address", device)
         finally:
             await self._discovery.stop()
             for task in list(self._sessions.values()):
@@ -1806,7 +1819,7 @@ class VoiceIncubatorApp:
             else None
         )
 
-    def _stop_session(self, device: Device, why: str = "went away") -> None:
+    def _stop_session(self, device: Device, why: str) -> None:
         task = self._sessions.pop(device.key, None)
         if task is not None:
             _LOGGER.info("Satellite %s: %s", why, device)
@@ -1822,13 +1835,23 @@ class VoiceIncubatorApp:
                         session.host, session.port
                     )
                 except OSError as err:
-                    _LOGGER.warning("Connect failed (%s); retrying in %.0fs", err, backoff)
+                    # Retried for good -- a satellite unplugged for a while
+                    # comes back without a restart -- so said until the
+                    # delay stops growing, then only in the debug log.
+                    if backoff < self.options.max_reconnect_seconds:
+                        _LOGGER.warning("Connect failed (%s); retrying in %.0fs", err, backoff)
+                    elif not session.quiet_retries:
+                        session.quiet_retries = True
+                        _LOGGER.warning("Connect failed (%s); retrying every %.0fs", err, backoff)
+                    else:
+                        _LOGGER.debug("Connect failed (%s); retrying in %.0fs", err, backoff)
                     await asyncio.sleep(backoff)
                     backoff = min(backoff * 2, self.options.max_reconnect_seconds)
                     continue
 
                 self._enable_keepalive(writer)
                 session.writer = writer
+                session.quiet_retries = False
                 started = time.monotonic()
                 try:
                     await self._read_loop(session, reader)
