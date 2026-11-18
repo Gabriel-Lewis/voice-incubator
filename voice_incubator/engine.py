@@ -1662,7 +1662,7 @@ class Engine:
                     heard_there = [e for area in said_areas for e in in_area(phrase, area)]
                     anywhere = [e for e in devices if phrase in here_keys.get(e, ()) or phrase in house_keys.get(e, ())]
                     if heard_there:  # a name heard only there
-                        return refused(say.not_here(label, [room(said_areas[0])]))
+                        return refused(say.only_there(label, room(said_areas[0])))
                     if all(area_of(e) is None for e in anywhere):
                         return refused(say.no_room(label))
                     return refused(say.not_in(label, room(said_areas[0])))

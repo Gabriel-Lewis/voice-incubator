@@ -293,7 +293,10 @@ def test_a_name_in_several_rooms():
     # Not heard elsewhere, even with its area said.
     assert heard("turn on the overhead light", "office") == ["light.office_overhead"]
     assert heard("turn on the overhead light", "kitchen").endswith("but there's no Overhead Light here, only in the Office.")
-    assert heard("turn on the overhead light in the office", "kitchen").endswith("but there's no Overhead Light here, only in the Office.")
+    assert heard("turn on the overhead light in the office", "kitchen").endswith(
+        "but the Overhead Light in the Office can only be controlled from there.")
+    assert heard("turn on the office overhead light", "kitchen").endswith(
+        "but the Overhead Light in the Office can only be controlled from there.")
     # The same names in the whole house (left out): from anywhere.
     assert heard("turn on the porch light", "kitchen") == ["light.porch"]
     assert heard("turn on the desk light", "kitchen") == ["light.desk"]
