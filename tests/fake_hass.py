@@ -112,6 +112,8 @@ class FakeHass:
         self.fail_scripts = False
         self.integration = True
         """Whether the Voice Incubator integration is installed and set up."""
+        self.state = "RUNNING"
+        """Home Assistant's own (get_config): "STARTING" until ``started``."""
         self.services: list[dict[str, Any]] = []
         self.satellites: dict[str, dict[str, Any]] = {}
         """The integration's satellites, each with a device."""
@@ -252,7 +254,7 @@ class FakeHass:
         elif kind == "homeassistant/expose_entity/list":
             await result({"exposed_entities": {e: {"conversation": e in self.exposed()} for e in self.known()}})
         elif kind == "get_config":
-            await result({"time_zone": self.time_zone, "version": "fake"})
+            await result({"time_zone": self.time_zone, "version": "fake", "state": self.state})
         elif kind == "calendar/event/subscribe":
             entity_id = message["entity_id"]
             if entity_id not in self.calendar_events:
@@ -685,6 +687,11 @@ class FakeHass:
             self.disabled_devices.add(device_id)
         else:
             self.disabled_devices.discard(device_id)
+
+    async def started(self) -> None:
+        """Finished starting, as Home Assistant says it."""
+        self.state = "RUNNING"
+        await self.registry_changed("homeassistant_started", {})
 
     async def registry_changed(self, event_type: str, data: dict[str, Any]) -> None:
         """Tell those subscribed that a registry changed, as Home Assistant does."""
