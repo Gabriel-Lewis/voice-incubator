@@ -81,6 +81,8 @@ DEFAULT_SETTINGS: dict[str, Any] = {
     "keep_audio": False,
     # Oldest saved calls are deleted beyond this many.
     "max_saved_calls": 200,
+    # Keep every call's wake word audio, and only that: to hear what woke it.
+    "keep_wake_audio": False,
 }
 
 

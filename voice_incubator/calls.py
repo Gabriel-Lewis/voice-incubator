@@ -26,11 +26,14 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
-from .protocol import BYTES_PER_SAMPLE, SAMPLE_RATE
+from .protocol import BYTES_PER_SAMPLE, BYTE_RATE, SAMPLE_RATE
 
 _LOGGER = logging.getLogger(__name__)
 
 RECENT = 100
+
+WAKE_AFTER = 1.0
+"""Seconds kept after the detection with ``keep_wake_audio``."""
 
 
 @dataclass
@@ -181,6 +184,18 @@ class CallLog:
     def keeps_audio(self, record: CallRecord) -> bool:
         return bool(self.settings.get("keep_audio")) or record.debug_session
 
+    def keeps_wake_audio(self, record: CallRecord) -> bool:
+        """Only the wake word: every call's pre-roll and the moment after it,
+        with ``keep_wake_audio`` on."""
+        return record.kind == "call" and bool(self.settings.get("keep_wake_audio"))
+
+    def _wake_only(self, record: CallRecord, audio: dict[str, bytes]) -> dict[str, bytes]:
+        """The call's audio up to just after the wake word: the detection's
+        pre-roll and ``WAKE_AFTER`` seconds more (where Kaldi's retry looks)."""
+        detection = float(record.marks.get("detection") or 1.5)
+        end = int((detection + WAKE_AFTER) * BYTE_RATE) // BYTES_PER_SAMPLE * BYTES_PER_SAMPLE
+        return {"wake": audio["call"][:end]} if audio.get("call") else {}
+
     def finish(
         self,
         record: CallRecord,
@@ -191,7 +206,11 @@ class CallLog:
         record.outcome = outcome
         record.summary = summary
         record.finished = time.time()
-        if not (audio and self.keeps_audio(record)):
+        if audio and not self.keeps_audio(record) and self.keeps_wake_audio(record):
+            audio = self._wake_only(record, audio)
+        elif not (audio and self.keeps_audio(record)):
+            return
+        if not audio:
             return
         directory = self.calls_dir / record.id
         try:
