@@ -795,7 +795,7 @@ async def _scenario(tmp_path: Path) -> None:
             agents = (await (await http.get("/api/agents")).json())["agents"]
             assert [a["id"] for a in agents] == ["conversation.home_assistant", "conversation.chatty"]
             assert (await http.put("/api/settings", json={"agent": "conversation.chatty", "agent_keep_minutes": 5})).status == 200
-            assert (await (await http.get("/api/status")).json())["agent"] == {"agent": "conversation.chatty", "keep_minutes": 5.0, "voice": {}, "conversations": {}}
+            assert (await (await http.get("/api/status")).json())["agent"] == {"agent": "conversation.chatty", "keep_minutes": 5.0, "voice": {}, "speaker": False, "conversations": {}}
             # Its own voice: Piper's (one of its voices and speakers) or a TTS entity's; refused, why.
             voice = {"tts": "tts.cloud", "tts_language": "auto", "tts_voice": "GuyNeural"}
             assert (await http.put("/api/settings", json={"agent_voice": voice})).status == 200
