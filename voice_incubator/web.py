@@ -188,6 +188,7 @@ async def start_web(app: "VoiceIncubatorApp") -> web.AppRunner:
             web.get("/api/calls/{id}/audio/{name}", api.call_audio),
             web.post("/api/calls/{id}/replay", api.replay),
             web.post("/api/calls/{id}/speaker", api.add_voice),
+            web.put("/api/calls/{id}/label", api.label_call),
             web.get("/api/speakers", api.speakers),
             web.get("/api/speakers/enrollment", api.enrollment),
             web.post("/api/speakers/enrollment", api.start_enrollment),
@@ -2028,6 +2029,19 @@ class Api:
         if path is None:
             raise FileNotFoundError("No such audio")
         return web.FileResponse(path, headers={"Content-Type": "audio/wav"})
+
+    async def label_call(self, request: web.Request) -> web.Response:
+        """A review label: ``{label}``, one of good, false_wake or discard,
+        or null to take it off."""
+        body = await request.json()
+        label = body.get("label")
+        try:
+            record = self.app.calls.set_label(request.match_info["id"], None if label is None else str(label))
+        except ValueError as err:
+            return web.json_response({"error": str(err)}, status=400)
+        if record is None:
+            raise FileNotFoundError("No such call")
+        return web.json_response(record.to_json(full=False), dumps=_dumps)
 
     async def add_voice(self, request: web.Request) -> web.Response:
         """This session's voice, into a speaker's profile: ``{name}``, one

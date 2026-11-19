@@ -4271,6 +4271,28 @@ function enrollPanel(data, preset) {
     box);
 }
 
+// Review labels (voice_incubator/labels.py): was it really the wake word?
+const LABEL_NAMES = { good: "Good wake", false_wake: "False wake", discard: "Discard" };
+
+// The label a session has, and buttons to set it.
+function labelControls(c, changed) {
+  const set = async (e, label) => {
+    e.preventDefault();
+    e.stopPropagation();
+    const now = c.label && c.label.label === label ? null : label;
+    await api("PUT", `calls/${c.id}/label`, { label: now });
+    toast(now ? `Labelled ${LABEL_NAMES[now].toLowerCase()}` : "Label removed");
+    changed();
+  };
+  const current = c.label && c.label.label;
+  return h("span", { class: "label-controls small", onclick: (e) => { e.preventDefault(); e.stopPropagation(); } },
+    ...Object.keys(LABEL_NAMES).map((label) => h("button", {
+      class: `small ${current === label ? "primary" : ""}`,
+      title: current === label ? "Remove the label" : `Label it: ${LABEL_NAMES[label].toLowerCase()}`,
+      onclick: (e) => set(e, label),
+    }, LABEL_NAMES[label])));
+}
+
 async function pageSessions(query) {
   const satellite = new URLSearchParams(query || "").get("satellite");
   await loadSatellites();
@@ -4293,7 +4315,8 @@ async function pageSessions(query) {
           c.wake ? ` · ${c.wake.name || c.wake.wake_word}${c.wake.probability !== undefined ? ` ${prob(c.wake.probability)}` : ""}` : c.follow_up ? " · follow-up" : "")),
       c.kept ? icon("mdi:waveform", "", "Audio kept") : null,
       c.dry_run && c.outcome !== "dry run" ? h("span", { class: "badge" }, "dry run") : null,
-      h("span", { class: `badge ${OUTCOME_CLASS[c.outcome] || ""}` }, c.outcome)));
+      h("span", { class: `badge ${OUTCOME_CLASS[c.outcome] || ""}` }, c.outcome),
+      c.kept && c.kind === "call" ? labelControls(c, refresh) : null));
 
   async function refresh() {
     const data = await api("GET", `calls${satellite ? `?satellite=${satellite}` : ""}`);
@@ -4315,7 +4338,7 @@ async function pageSessions(query) {
       h("h1", { style: "margin:0; flex:1 0 auto" }, satellite ? `Sessions on ${sats[satellite] || satellite}` : "Sessions"),
       satellite ? h("a", { href: "#/sessions" }, "All satellites") : null,
       h("label", { class: "small" }, keep, "Keep every session", hint("Keeps the audio and full trace of every session — everything from the wake word to the answer. Without this, the last sessions' traces are kept in memory only. Debugging one satellite (on its page, under Test it) keeps its audio.")),
-      h("label", { class: "small" }, keepWake, "Keep wake words", hint("Keeps only the wake word of every session — 2.5 seconds, from just before it to a second after — to hear what woke it. Without this, a false wake can only be heard again with Keep every session.")),
+      h("label", { class: "small" }, keepWake, "Keep wake words", hint("Keeps only the wake word of every session — 2.5 seconds, from just before it to a second after — to hear what woke it and label it below. Without this, a false wake can only be heard again with Keep every session.")),
       h("label", { class: "small" }, "At most", max),
       clear),
     session && session.debug ? h("div", { class: "notice warn" }, `Debugging ${session.name}${session.debug.dry_run ? " (dry run: nothing is executed)" : ""}. New sessions appear here as they happen.`) : null,

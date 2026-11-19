@@ -166,6 +166,8 @@ a.session-row { color: inherit; flex-wrap: nowrap; }
 a.session-row:hover { text-decoration: none; background: var(--bg); }
 .session-row .heard { font-weight: 600; overflow-wrap: anywhere; }
 .session-side { flex: none; display: flex; align-items: center; gap: 10px; }
+.label-controls { display: inline-flex; align-items: center; gap: 4px; }
+.label-controls button.small { padding: 2px 8px; font-size: 12px; }
 .session-meta { display: flex; flex-direction: column; text-align: right; white-space: nowrap; }
 @media (max-width: 640px) {
   a.session-row { flex-wrap: wrap; row-gap: 4px; }
